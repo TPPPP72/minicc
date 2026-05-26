@@ -1,6 +1,6 @@
 #pragma once
 
-#include "minicc.hpp"
+#include <minicc.hpp>
 #include <format>
 #include <iostream>
 

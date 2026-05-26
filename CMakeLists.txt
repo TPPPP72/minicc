@@ -6,4 +6,6 @@ add_executable(minicc)
 
 target_compile_features(minicc PRIVATE cxx_std_20)
 
+target_include_directories(minicc PRIVATE include)
+
 target_sources(minicc PRIVATE main.cpp)

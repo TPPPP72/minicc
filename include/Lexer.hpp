@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Diag.hpp"
-#include "minicc.hpp"
+#include <Diag.hpp>
+#include <minicc.hpp>
 #include <algorithm>
 #include <cctype>
 #include <vector>
