@@ -11,15 +11,49 @@ class AST
 {
 public:
     AST(TokenViewer token_viewer) : tok(token_viewer) {}
+    Node *parse()
+    {
+        return compoundStmt();
+    }
+
+private:
+    Node *compoundStmt()
+    {
+        if (tok.tryConsumeToken("{"))
+        {
+            Node head = {};
+            Node *cur = &head;
+            while (true)
+            {
+                if (tok.tryConsumeToken("}"))
+                    break;
+                
+                auto token = tok.getToken();
+                if (token.type == TokenType::ENDF)
+                {
+                    DiagnosticEngine::errorOnTok(token, "expected '}}'");
+                    break;
+                }
+                cur = cur->next = stmt();
+            }
+            return head.next;
+        }
+
+        return stmt();
+    }
 
     Node *stmt()
     {
-        auto node = expr();
+        return expr_stmt();
+    }
+
+    Node *expr_stmt()
+    {
+        auto node = new Node{NodeType::EXPR_STMT, expr()};
         tok.consumeToken(";");
         return node;
     }
 
-private:
     Node *expr()
     {
         return add();

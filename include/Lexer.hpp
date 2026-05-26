@@ -52,7 +52,7 @@ private:
 class Lexer
 {
 public:
-    Lexer() { tokens.reserve(4098); }
+    Lexer() { tokens.reserve(4096); }
     TokenViewer tokenize(std::string_view source)
     {
         std::uint32_t offset{};

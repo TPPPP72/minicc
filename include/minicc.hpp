@@ -26,21 +26,25 @@ struct alignas(32) Token
 
 enum class NodeType
 {
+    EXPR_STMT,
     NEG,
     ADD,
     SUB,
     MUL,
     DIV,
     MOD,
-    NUM
+    NUM,
 };
 
 struct Node
 {
     NodeType type;
+    Node *next;
     Node *lhs;
     Node *rhs;
     std::int32_t val;
+
+    Node() = default;
 
     /// Binary
     Node(NodeType ty, Node *l, Node *r) : type(ty), lhs(l), rhs(r) {}
