@@ -34,6 +34,12 @@ enum class NodeType
     DIV,
     MOD,
     NUM,
+    EQ,
+    NE,
+    LE,
+    LT,
+    GE,
+    GT
 };
 
 struct Node

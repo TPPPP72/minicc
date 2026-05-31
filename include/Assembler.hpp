@@ -33,9 +33,50 @@ public:
         std::cout << "  mov %" << src << ", %" << dst << '\n';
     }
 
+    template <typename Val>
+    static auto movzb(Val src, std::string_view dst) -> std::enable_if_t<std::is_arithmetic_v<Val>>
+    {
+        std::cout << "  movzb $" << src << ", %" << dst << '\n';
+    }
+
+    static void movzb(std::string_view src, std::string_view dst)
+    {
+        std::cout << "  movzb %" << src << ", %" << dst << '\n';
+    }
+
     static void neg(std::string_view dst)
     {
-        std::cout << "neg %" << dst << '\n';
+        std::cout << "  neg %" << dst << '\n';
+    }
+
+    static void sete(std::string_view dst)
+    {
+        std::cout << "  sete %" << dst << '\n';
+    }
+
+    static void setne(std::string_view dst)
+    {
+        std::cout << "  setne %" << dst << '\n';
+    }
+
+    static void setl(std::string_view dst)
+    {
+        std::cout << "  setl %" << dst << '\n';
+    }
+
+    static void setle(std::string_view dst)
+    {
+        std::cout << "  setle %" << dst << '\n';
+    }
+
+    static void setg(std::string_view dst)
+    {
+        std::cout << "  setg %" << dst << '\n';
+    }
+
+    static void setge(std::string_view dst)
+    {
+        std::cout << "  setge %" << dst << '\n';
     }
 
     template <typename Val>
@@ -82,6 +123,17 @@ public:
     {
         std::cout << "  cqo\n";
         std::cout << "  idiv %" << src << ", %" << dst << '\n';
+    }
+
+    template <typename Val>
+    static auto cmp(Val src, std::string_view dst) -> std::enable_if_t<std::is_arithmetic_v<Val>>
+    {
+        std::cout << "  cmp $" << src << ", %" << dst << '\n';
+    }
+
+    static void cmp(std::string_view src, std::string_view dst)
+    {
+        std::cout << "  cmp %" << src << ", %" << dst << '\n';
     }
 
     static void ret()

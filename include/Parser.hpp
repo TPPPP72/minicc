@@ -7,10 +7,10 @@
 
 /// TODO: Here we need a Arena Allocator
 
-class AST
+class Parser
 {
 public:
-    AST(TokenViewer token_viewer) : tok(token_viewer) {}
+    Parser(TokenViewer token_viewer) : tok(token_viewer) {}
     Node *parse()
     {
         return compoundStmt();
@@ -27,11 +27,11 @@ private:
             {
                 if (tok.tryConsumeToken("}"))
                     break;
-                
+
                 auto token = tok.getToken();
                 if (token.type == TokenType::ENDF)
                 {
-                    DiagnosticEngine::errorOnTok(token, "expected '}}'");
+                    DiagnosticEngine::errorOnTok(token, "expected '}'");
                     break;
                 }
                 cur = cur->next = stmt();
@@ -56,7 +56,63 @@ private:
 
     Node *expr()
     {
-        return add();
+        return equality();
+    }
+
+    Node *equality()
+    {
+        auto node = relational();
+
+        while (true)
+        {
+            if (tok.tryConsumeToken("=="))
+            {
+                node = new Node{NodeType::EQ, node, relational()};
+                continue;
+            }
+
+            if (tok.tryConsumeToken("!="))
+            {
+                node = new Node{NodeType::NE, node, relational()};
+                continue;
+            }
+
+            return node;
+        }
+    }
+
+    Node *relational()
+    {
+        auto node = add();
+
+        while (true)
+        {
+            if (tok.tryConsumeToken("<="))
+            {
+                node = new Node{NodeType::LE, node, add()};
+                continue;
+            }
+
+            if (tok.tryConsumeToken("<"))
+            {
+                node = new Node{NodeType::LT, node, add()};
+                continue;
+            }
+
+            if (tok.tryConsumeToken(">="))
+            {
+                node = new Node{NodeType::GE, node, add()};
+                continue;
+            }
+
+            if (tok.tryConsumeToken(">"))
+            {
+                node = new Node{NodeType::GT, node, add()};
+                continue;
+            }
+
+            return node;
+        }
     }
 
     Node *add()

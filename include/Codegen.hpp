@@ -41,7 +41,7 @@ private:
             Assembler::neg("rax");
             return;
         default:
-            __builtin_unreachable();
+            break;
         }
 
         gen_expr(node->rhs);
@@ -67,6 +67,39 @@ private:
             Assembler::idiv("rdi", "rax");
             Assembler::mov("rdx", "rax");
             return;
+        case NodeType::EQ:
+        case NodeType::NE:
+        case NodeType::LE:
+        case NodeType::LT:
+        case NodeType::GE:
+        case NodeType::GT:
+            Assembler::cmp("rdi", "rax");
+            switch (node->type)
+            {
+            case NodeType::EQ:
+                Assembler::sete("al");
+                break;
+            case NodeType::NE:
+                Assembler::setne("al");
+                break;
+            case NodeType::LE:
+                Assembler::setle("al");
+                break;
+            case NodeType::LT:
+                Assembler::setl("al");
+                break;
+            case NodeType::GE:
+                Assembler::setge("al");
+                break;
+            case NodeType::GT:
+                Assembler::setg("al");
+                break;
+            default:
+                __builtin_unreachable();
+            }
+            Assembler::movzb("al", "rax");
+            return;
+
         default:
             __builtin_unreachable();
         }
