@@ -1,62 +1,75 @@
 #pragma once
 
-#include <Diag.hpp>
-#include <Lexer.hpp>
+#include <AST/Function.hpp>
+#include <Diag/Diag.hpp>
+#include <Lexer/Lexer.hpp>
 #include <charconv>
-#include <minicc.hpp>
 
 /// TODO: Here we need a Arena Allocator
 
 class Parser
 {
 public:
-    Parser(TokenViewer token_viewer) : tok(token_viewer) {}
-    Node *parse()
+    Parser(TokenViewer token_viewer) : tok(token_viewer), locals(nullptr) {}
+    Function *parse()
     {
-        return compoundStmt();
+        tok.consumeToken("{");
+        auto func    = new Function{};
+        func->body   = compoundStmt();
+        func->locals = locals;
+        return func;
     }
 
 private:
     Node *compoundStmt()
     {
-        if (tok.tryConsumeToken("{"))
-        {
-            Node head = {};
-            Node *cur = &head;
-            while (true)
-            {
-                if (tok.tryConsumeToken("}"))
-                    break;
+        Node head = {};
+        Node *cur = &head;
+        while (!tok.tryConsumeToken("}"))
+            cur = cur->next = stmt();
 
-                auto token = tok.getToken();
-                if (token.type == TokenType::ENDF)
-                {
-                    DiagnosticEngine::errorOnTok(token, "expected '}'");
-                    break;
-                }
-                cur = cur->next = stmt();
-            }
-            return head.next;
-        }
-
-        return stmt();
+        auto node  = new Node{NodeType::BLOCK};
+        node->body = head.next;
+        return node;
     }
 
     Node *stmt()
     {
-        return expr_stmt();
+        if (tok.tryConsumeToken("return"))
+        {
+            auto node = new Node{NodeType::RETURN, expr()};
+            tok.consumeToken(";");
+            return node;
+        }
+
+        if (tok.tryConsumeToken("{"))
+            return compoundStmt();
+
+        return exprStmt();
     }
 
-    Node *expr_stmt()
+    Node *exprStmt()
     {
         auto node = new Node{NodeType::EXPR_STMT, expr()};
+
         tok.consumeToken(";");
+
         return node;
     }
 
     Node *expr()
     {
-        return equality();
+        return assign();
+    }
+
+    Node *assign()
+    {
+        auto node = equality();
+
+        if (tok.tryConsumeToken("="))
+            return new Node{NodeType::ASSIGN, node, assign()};
+
+        return node;
     }
 
     Node *equality()
@@ -186,6 +199,16 @@ private:
         }
 
         auto token = tok.getToken();
+
+        if (token.type == TokenType::IDENT)
+        {
+            auto var = findVar();
+            if (!var)
+                var = newLvar();
+            tok.skipToken();
+            return new Node{var};
+        }
+
         if (token.type == TokenType::NUM)
         {
             std::int32_t value;
@@ -200,5 +223,26 @@ private:
     }
 
 private:
+    Object *newLvar()
+    {
+        auto var  = new Object{};
+        var->name = tok.getToken().getContent();
+        var->next = locals;
+        locals    = var;
+        return var;
+    }
+
+    Object *findVar()
+    {
+        for (auto var = locals; var; var = var->next)
+        {
+            if (var->name == tok.getToken().getContent())
+                return var;
+        }
+        return nullptr;
+    }
+
+private:
     TokenViewer tok;
+    Object *locals;
 };

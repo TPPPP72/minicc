@@ -1,6 +1,6 @@
 #pragma once
 
-#include <minicc.hpp>
+#include <Lexer/Token.hpp>
 #include <format>
 #include <iostream>
 

@@ -1,34 +1,17 @@
 #pragma once
 
+#include <AST/Object.hpp>
 #include <cstdint>
-#include <string_view>
-
-enum class TokenType
-{
-    INVALID,
-    KEYWORD,
-    PUNCT,
-    VAR,
-    NUM,
-    OPERATOR,
-    ENDF
-};
-
-struct alignas(32) Token
-{
-    std::string_view source;
-    TokenType type;
-    std::uint32_t loc;
-    std::uint32_t len;
-
-    std::string_view getContent() const { return source.substr(loc, len); }
-};
 
 enum class NodeType
 {
+    BLOCK,
+    RETURN,
     EXPR_STMT,
+    ASSIGN,
     NEG,
     ADD,
+    VAR,
     SUB,
     MUL,
     DIV,
@@ -48,9 +31,14 @@ struct Node
     Node *next;
     Node *lhs;
     Node *rhs;
+    Node *body;
+    Object *var;
     std::int32_t val;
 
     Node() = default;
+
+    /// Type Only
+    Node(NodeType ty) : type(ty) {}
 
     /// Binary
     Node(NodeType ty, Node *l, Node *r) : type(ty), lhs(l), rhs(r) {}
@@ -60,4 +48,7 @@ struct Node
 
     /// Num
     Node(std::int32_t v) : type(NodeType::NUM), val(v) {}
+
+    /// Var
+    Node(Object *v) : type(NodeType::VAR), var(v) {}
 };

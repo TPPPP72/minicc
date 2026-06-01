@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <iostream>
 #include <string_view>
 #include <type_traits>
@@ -7,9 +8,9 @@
 class Assembler
 {
 public:
-    static void push()
+    static void push(std::string_view dst)
     {
-        std::cout << "  push %rax\n";
+        std::cout << "  push %" << dst << "\n";
     }
 
     static void pop(std::string_view dst)
@@ -134,6 +135,11 @@ public:
     static void cmp(std::string_view src, std::string_view dst)
     {
         std::cout << "  cmp %" << src << ", %" << dst << '\n';
+    }
+
+    static void lea(std::int32_t offset, std::string_view src, std::string_view dst)
+    {
+        std::cout << "  lea " << offset << "(%" << src << ")" << ", %" << dst << '\n';
     }
 
     static void ret()

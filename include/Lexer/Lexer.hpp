@@ -1,7 +1,7 @@
 #pragma once
 
-#include <Diag.hpp>
-#include <minicc.hpp>
+#include <Diag/Diag.hpp>
+#include <Lexer/Token.hpp>
 #include <algorithm>
 #include <cctype>
 #include <vector>
@@ -87,7 +87,7 @@ public:
                 if (isKeyword(source.substr(offset, len)))
                     tokens.emplace_back(source, TokenType::KEYWORD, offset, len);
                 else
-                    tokens.emplace_back(source, TokenType::VAR, offset, len);
+                    tokens.emplace_back(source, TokenType::IDENT, offset, len);
 
                 offset += len;
                 continue;
@@ -151,6 +151,6 @@ private:
     std::array<std::string_view, 16> twochar_operator{"=="sv, "!="sv, ">="sv, "<="sv, "&&"sv, "||"sv, ">>"sv, "<<"sv, "+="sv, "-="sv, "*="sv, "/="sv, "%="sv, "&="sv, "|="sv, "^="sv};
     std::array<std::string_view, 13> onechar_operator{"="sv, "!"sv, ">"sv, "<"sv, "&"sv, "|"sv, "^"sv, "-"sv, "+"sv, "*"sv, "/"sv, "%"sv, "~"sv};
     std::array<std::string_view, 8> punctator{","sv, ";"sv, "{"sv, "}"sv, "("sv, ")"sv, "["sv, "]"sv};
-    std::array<std::string_view, 9> keywords{"char"sv, "short"sv, "int"sv, "float"sv, "double"sv, "main"sv, "if"sv, "while"sv, "for"sv};
+    std::array<std::string_view, 10> keywords{"char"sv, "short"sv, "int"sv, "float"sv, "double"sv, "main"sv, "if"sv, "while"sv, "for"sv, "return"sv};
     std::vector<Token> tokens;
 };

@@ -1,36 +1,56 @@
 #pragma once
 
-#include <Assembler.hpp>
-#include <Diag.hpp>
-#include <minicc.hpp>
+#include <AST/Function.hpp>
+#include <Codegen/Assembler.hpp>
+#include <Diag/Diag.hpp>
 
 class Codegen
 {
 public:
-    void generate(Node *node)
+    void generate(Function *func)
     {
+        assign_lvar_offsets(func);
+
         std::cout << "  .globl main\n";
         Assembler::label("main");
 
-        for (Node *n = node; n; n = n->next)
+        Assembler::push("rbp");
+        Assembler::mov("rsp", "rbp");
+        Assembler::sub(func->stack_size, "rsp");
+
+        for (auto n = func->body; n; n = n->next)
             gen_stmt(n);
 
+        std::cout << ".L.return:\n";
+        Assembler::mov("rbp", "rsp");
+        Assembler::pop("rbp");
         Assembler::ret();
     }
 
 private:
     void gen_stmt(Node *node)
     {
-        if (node->type == NodeType::EXPR_STMT)
+        switch (node->type)
         {
-            gen_expr(node->lhs);
+        case NodeType::EXPR_STMT:
+            genExpr(node->lhs);
             return;
+        case NodeType::RETURN:
+            genExpr(node->lhs);
+            std::cout << "  jmp .L.return\n";
+            return;
+        case NodeType::BLOCK:
+            for (Node *n = node->body; n; n = n->next)
+                gen_stmt(n);
+            return;
+        default:
+            break;
         }
 
         DiagnosticEngine::error("error statement");
     }
 
-    void gen_expr(Node *node)
+    void genExpr(Node *node)
     {
         switch (node->type)
         {
@@ -40,13 +60,24 @@ private:
         case NodeType::NEG:
             Assembler::neg("rax");
             return;
+        case NodeType::VAR:
+            genAddr(node);
+            std::cout << "  mov (%rax), %rax\n";
+            return;
+        case NodeType::ASSIGN:
+            genAddr(node->lhs);
+            Assembler::push("rax");
+            genExpr(node->rhs);
+            Assembler::pop("rdi");
+            std::cout << "  mov %rax, (%rdi)\n";
+            return;
         default:
             break;
         }
 
-        gen_expr(node->rhs);
-        Assembler::push();
-        gen_expr(node->lhs);
+        genExpr(node->rhs);
+        Assembler::push("rax");
+        genExpr(node->lhs);
         Assembler::pop("rdi");
 
         switch (node->type)
@@ -95,15 +126,44 @@ private:
                 Assembler::setg("al");
                 break;
             default:
-                __builtin_unreachable();
+                break;
             }
             Assembler::movzb("al", "rax");
             return;
 
         default:
-            __builtin_unreachable();
+            break;
         }
 
         DiagnosticEngine::error("invalid expression");
+    }
+
+private:
+    void genAddr(Node *node)
+    {
+        if (node->type == NodeType::VAR)
+        {
+            Assembler::lea(node->var->offset, "rbp", "rax");
+            return;
+        }
+
+        DiagnosticEngine::error("not a lvalue");
+    }
+
+private:
+    int align_to(int n, int align)
+    {
+        return (n + align - 1) / align * align;
+    }
+
+    void assign_lvar_offsets(Function *func)
+    {
+        int offset = 0;
+        for (auto var = func->locals; var; var = var->next)
+        {
+            offset += 8;
+            var->offset = -offset;
+        }
+        func->stack_size = align_to(offset, 16);
     }
 };
