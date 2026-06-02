@@ -1,6 +1,7 @@
 #pragma once
 
 #include <AST/Object.hpp>
+#include <Lexer/Token.hpp>
 #include <cstdint>
 
 enum class NodeType
@@ -9,6 +10,8 @@ enum class NodeType
     RETURN,
     EXPR_STMT,
     ASSIGN,
+    IF,
+    FOR,
     NEG,
     ADD,
     VAR,
@@ -28,12 +31,18 @@ enum class NodeType
 struct Node
 {
     NodeType type;
-    Node *next;
-    Node *lhs;
-    Node *rhs;
-    Node *body;
-    Object *var;
-    std::int32_t val;
+    Token tok;
+    Node *next{nullptr};
+    Node *lhs{nullptr};
+    Node *rhs{nullptr};
+    Node *body{nullptr};
+    Node *cond{nullptr};
+    Node *then{nullptr};
+    Node *els{nullptr};
+    Node *init{nullptr};
+    Node *inc{nullptr};
+    Object *var{nullptr};
+    std::int32_t val{};
 
     Node() = default;
 

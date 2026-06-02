@@ -13,32 +13,62 @@ public:
     Parser(TokenViewer token_viewer) : tok(token_viewer), locals(nullptr) {}
     Function *parse()
     {
-        tok.consumeToken("{");
         auto func    = new Function{};
-        func->body   = compoundStmt();
+        func->body   = stmt();
         func->locals = locals;
         return func;
     }
 
 private:
-    Node *compoundStmt()
-    {
-        Node head = {};
-        Node *cur = &head;
-        while (!tok.tryConsumeToken("}"))
-            cur = cur->next = stmt();
-
-        auto node  = new Node{NodeType::BLOCK};
-        node->body = head.next;
-        return node;
-    }
-
     Node *stmt()
     {
         if (tok.tryConsumeToken("return"))
         {
             auto node = new Node{NodeType::RETURN, expr()};
+            node->tok = tok.prev();
             tok.consumeToken(";");
+            return node;
+        }
+
+        if (tok.tryConsumeToken("if"))
+        {
+            auto node = new Node{NodeType::IF};
+            node->tok = tok.prev();
+            tok.consumeToken("(");
+            node->cond = expr();
+            tok.consumeToken(")");
+            node->then = stmt();
+            if (tok.tryConsumeToken("else"))
+                node->els = stmt();
+            return node;
+        }
+
+        if (tok.tryConsumeToken("for"))
+        {
+            auto node = new Node{NodeType::FOR};
+            node->tok = tok.prev();
+            tok.consumeToken("(");
+            node->init = exprStmt();
+            if (!tok.tryConsumeToken(";")){
+                node->cond = expr();
+                tok.consumeToken(";");
+            }
+            if (!tok.tryConsumeToken(")"))
+            {
+                node->inc = expr();
+                tok.consumeToken(")");
+            }
+            node->then = stmt();
+            return node;
+        }
+
+        if(tok.tryConsumeToken("while")){
+            auto node = new Node{NodeType::FOR};
+            node->tok = tok.prev();
+            tok.consumeToken("(");
+            node->cond = expr();
+            tok.consumeToken(")");
+            node->then = stmt();
             return node;
         }
 
@@ -48,12 +78,29 @@ private:
         return exprStmt();
     }
 
+    Node *compoundStmt()
+    {
+        Node head = {};
+        Node *cur = &head;
+        while (!tok.tryConsumeToken("}"))
+            cur = cur->next = stmt();
+
+        auto node  = new Node{NodeType::BLOCK};
+        node->tok = tok.getToken();
+        node->body = head.next;
+        return node;
+    }
+
     Node *exprStmt()
     {
+        if (tok.tryConsumeToken(";")){
+            auto node = new Node{NodeType::BLOCK};
+            node->tok = tok.prev();
+            return node;
+        }
+
         auto node = new Node{NodeType::EXPR_STMT, expr()};
-
         tok.consumeToken(";");
-
         return node;
     }
 
@@ -64,12 +111,16 @@ private:
 
     Node *assign()
     {
-        auto node = equality();
+        auto lhs = equality();
 
         if (tok.tryConsumeToken("="))
-            return new Node{NodeType::ASSIGN, node, assign()};
+        {
+            auto rhs = new Node{NodeType::ASSIGN, lhs, assign()};
+            rhs->tok = tok.prev();
+            return rhs;
+        }
 
-        return node;
+        return lhs;
     }
 
     Node *equality()
@@ -81,12 +132,14 @@ private:
             if (tok.tryConsumeToken("=="))
             {
                 node = new Node{NodeType::EQ, node, relational()};
+                node->tok = tok.prev();
                 continue;
             }
 
             if (tok.tryConsumeToken("!="))
             {
                 node = new Node{NodeType::NE, node, relational()};
+                node->tok = tok.prev();
                 continue;
             }
 
@@ -103,24 +156,28 @@ private:
             if (tok.tryConsumeToken("<="))
             {
                 node = new Node{NodeType::LE, node, add()};
+                node->tok = tok.prev();
                 continue;
             }
 
             if (tok.tryConsumeToken("<"))
             {
                 node = new Node{NodeType::LT, node, add()};
+                node->tok = tok.prev();
                 continue;
             }
 
             if (tok.tryConsumeToken(">="))
             {
                 node = new Node{NodeType::GE, node, add()};
+                node->tok = tok.prev();
                 continue;
             }
 
             if (tok.tryConsumeToken(">"))
             {
                 node = new Node{NodeType::GT, node, add()};
+                node->tok = tok.prev();
                 continue;
             }
 
@@ -137,12 +194,14 @@ private:
             if (tok.tryConsumeToken("+"))
             {
                 node = new Node{NodeType::ADD, node, mul()};
+                node->tok = tok.prev();
                 continue;
             }
 
             if (tok.tryConsumeToken("-"))
             {
                 node = new Node{NodeType::SUB, node, mul()};
+                node->tok = tok.prev();
                 continue;
             }
 
@@ -159,18 +218,21 @@ private:
             if (tok.tryConsumeToken("*"))
             {
                 node = new Node{NodeType::MUL, node, unary()};
+                node->tok = tok.prev();
                 continue;
             }
 
             if (tok.tryConsumeToken("/"))
             {
                 node = new Node{NodeType::DIV, node, unary()};
+                node->tok = tok.prev();
                 continue;
             }
 
             if (tok.tryConsumeToken("%"))
             {
                 node = new Node{NodeType::MOD, node, unary()};
+                node->tok = tok.prev();
                 continue;
             }
 
@@ -183,8 +245,11 @@ private:
         if (tok.tryConsumeToken("+"))
             return unary();
 
-        if (tok.tryConsumeToken("-"))
-            return new Node{NodeType::NEG, unary()};
+        if (tok.tryConsumeToken("-")){
+            auto node = new Node{NodeType::NEG, unary()};
+            node->tok = tok.prev();
+            return node;
+        }
 
         return primary();
     }
@@ -206,7 +271,9 @@ private:
             if (!var)
                 var = newLvar();
             tok.skipToken();
-            return new Node{var};
+            auto node = new Node{var};
+            node->tok = tok.prev();
+            return node;
         }
 
         if (token.type == TokenType::NUM)
@@ -216,6 +283,7 @@ private:
             std::from_chars(content.begin(), content.end(), value);
             auto node = new Node{value};
             tok.skipToken();
+            node->tok = tok.prev();
             return node;
         }
 

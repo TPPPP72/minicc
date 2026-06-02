@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AST/Node.hpp"
 #include <AST/Function.hpp>
 #include <Codegen/Assembler.hpp>
 #include <Diag/Diag.hpp>
@@ -19,35 +20,74 @@ public:
         Assembler::sub(func->stack_size, "rsp");
 
         for (auto n = func->body; n; n = n->next)
-            gen_stmt(n);
+            genStmt(n);
 
-        std::cout << ".L.return:\n";
+        Assembler::label(".L.return");
         Assembler::mov("rbp", "rsp");
         Assembler::pop("rbp");
         Assembler::ret();
     }
 
 private:
-    void gen_stmt(Node *node)
+    void genStmt(Node *node)
     {
         switch (node->type)
         {
         case NodeType::EXPR_STMT:
+        {
             genExpr(node->lhs);
             return;
+        }
         case NodeType::RETURN:
+        {
             genExpr(node->lhs);
             std::cout << "  jmp .L.return\n";
             return;
+        }
         case NodeType::BLOCK:
+        {
             for (Node *n = node->body; n; n = n->next)
-                gen_stmt(n);
+                genStmt(n);
             return;
+        }
+        case NodeType::IF:
+        {
+            int temp = ++count;
+            genExpr(node->cond);
+            Assembler::cmp(0, "rax");
+            Assembler::je(std::format(".L.else.{}", temp));
+            genStmt(node->then);
+            Assembler::jmp(std::format(".L.end.{}", temp));
+            Assembler::label(std::format(".L.else.{}", temp));
+            if (node->els)
+                genStmt(node->els);
+            Assembler::label(std::format(".L.end.{}", temp));
+            return;
+        }
+        case NodeType::FOR:
+        {
+            int temp = ++count;
+            if (node->init)
+                genStmt(node->init);
+            Assembler::label(std::format(".L.begin.{}", temp));
+            if (node->cond)
+            {
+                genExpr(node->cond);
+                Assembler::cmp(0, "rax");
+                Assembler::je(std::format(".L.end.{}", temp));
+            }
+            genStmt(node->then);
+            if (node->inc)
+                genExpr(node->inc);
+            Assembler::jmp(std::format(".L.begin.{}", temp));
+            Assembler::label(std::format(".L.end.{}", temp));
+            return;
+        }
         default:
             break;
         }
 
-        DiagnosticEngine::error("error statement");
+        DiagnosticEngine::errorOnTok(node->tok, "error statement");
     }
 
     void genExpr(Node *node)
@@ -135,7 +175,7 @@ private:
             break;
         }
 
-        DiagnosticEngine::error("invalid expression");
+        DiagnosticEngine::errorOnTok(node->tok, "invalid expression");
     }
 
 private:
@@ -147,7 +187,7 @@ private:
             return;
         }
 
-        DiagnosticEngine::error("not a lvalue");
+        DiagnosticEngine::errorOnTok(node->tok, "not a lvalue");
     }
 
 private:
@@ -166,4 +206,7 @@ private:
         }
         func->stack_size = align_to(offset, 16);
     }
+
+private:
+    int count{};
 };

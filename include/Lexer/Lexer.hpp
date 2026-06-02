@@ -11,42 +11,53 @@ using namespace std::string_view_literals;
 class TokenViewer
 {
 public:
-    TokenViewer(const std::vector<Token> &tokens) : m_tokens(tokens) {}
+    TokenViewer() = default;
+    TokenViewer(const std::vector<Token> &tokens) : m_tokens(&tokens) {}
 
     const Token getToken() const noexcept
     {
-        return m_tokens[index];
+        return (*m_tokens)[m_index];
+    }
+
+    const Token prev() const noexcept
+    {
+        return (*m_tokens)[m_index - 1];
+    }
+
+    const Token next() const noexcept
+    {
+        return (*m_tokens)[m_index + 1];
     }
 
     void skipToken()
     {
-        ++index;
+        ++m_index;
     }
 
     void consumeToken(std::string_view content)
     {
-        if (content == m_tokens[index].getContent())
+        if (content == (*m_tokens)[m_index].getContent())
         {
-            ++index;
+            ++m_index;
             return;
         }
 
-        DiagnosticEngine::errorOnTok(m_tokens[index], "expected '{}'", content);
+        DiagnosticEngine::errorOnTok((*m_tokens)[m_index], "expected '{}'", content);
     }
 
     bool tryConsumeToken(std::string_view content)
     {
-        if (content == m_tokens[index].getContent())
+        if (content == (*m_tokens)[m_index].getContent())
         {
-            ++index;
+            ++m_index;
             return true;
         }
         return false;
     }
 
 private:
-    const std::vector<Token> &m_tokens;
-    std::uint32_t index{0};
+    const std::vector<Token> *m_tokens;
+    std::uint32_t m_index{0};
 };
 
 class Lexer
