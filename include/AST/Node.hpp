@@ -1,10 +1,11 @@
 #pragma once
 
 #include <AST/Object.hpp>
+#include <AST/Type.hpp>
 #include <Lexer/Token.hpp>
 #include <cstdint>
 
-enum class NodeType
+enum class NodeKind
 {
     BLOCK,
     RETURN,
@@ -25,12 +26,13 @@ enum class NodeType
     LE,
     LT,
     GE,
-    GT
+    GT,
+    ADDR,
+    DEREF
 };
 
-struct Node
+struct alignas(128) Node
 {
-    NodeType type;
     Token tok;
     Node *next{nullptr};
     Node *lhs{nullptr};
@@ -42,22 +44,24 @@ struct Node
     Node *init{nullptr};
     Node *inc{nullptr};
     Object *var{nullptr};
+    NodeKind kind;
+    TypeId type_id{};
     std::int32_t val{};
 
     Node() = default;
 
     /// Type Only
-    Node(NodeType ty) : type(ty) {}
+    Node(NodeKind ty) : kind(ty) {}
 
     /// Binary
-    Node(NodeType ty, Node *l, Node *r) : type(ty), lhs(l), rhs(r) {}
+    Node(NodeKind ty, Node *l, Node *r) : kind(ty), lhs(l), rhs(r) {}
 
     /// Unary
-    Node(NodeType ty, Node *expr) : type(ty), lhs(expr) {}
+    Node(NodeKind ty, Node *expr) : kind(ty), lhs(expr) {}
 
     /// Num
-    Node(std::int32_t v) : type(NodeType::NUM), val(v) {}
+    Node(std::int32_t v) : kind(NodeKind::NUM), val(v) {}
 
     /// Var
-    Node(Object *v) : type(NodeType::VAR), var(v) {}
+    Node(Object *v) : kind(NodeKind::VAR), var(v) {}
 };

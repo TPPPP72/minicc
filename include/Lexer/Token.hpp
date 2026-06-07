@@ -3,7 +3,7 @@
 #include <string_view>
 #include <cstdint>
 
-enum class TokenType
+enum class TokenKind
 {
     INVALID,
     KEYWORD,
@@ -18,7 +18,7 @@ enum class TokenType
 struct alignas(32) Token
 {
     std::string_view source;
-    TokenType type;
+    TokenKind kind;
     std::uint32_t loc;
     std::uint32_t len;
 

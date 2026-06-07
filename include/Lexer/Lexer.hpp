@@ -4,6 +4,7 @@
 #include <Lexer/Token.hpp>
 #include <algorithm>
 #include <cctype>
+#include <string_view>
 #include <vector>
 
 using namespace std::string_view_literals;
@@ -55,6 +56,13 @@ public:
         return false;
     }
 
+    bool isToken(std::string_view content){
+        if (content == (*m_tokens)[m_index].getContent())
+            return true;
+        
+        return false;
+    }
+
 private:
     const std::vector<Token> *m_tokens;
     std::uint32_t m_index{0};
@@ -84,7 +92,7 @@ public:
                 std::uint32_t len{1};
                 while (offset + len < maxlen && std::isdigit(source[offset + len]))
                     ++len;
-                tokens.emplace_back(source, TokenType::NUM, offset, len);
+                tokens.emplace_back(source, TokenKind::NUM, offset, len);
                 offset += len;
                 continue;
             }
@@ -96,9 +104,9 @@ public:
                     ++len;
 
                 if (isKeyword(source.substr(offset, len)))
-                    tokens.emplace_back(source, TokenType::KEYWORD, offset, len);
+                    tokens.emplace_back(source, TokenKind::KEYWORD, offset, len);
                 else
-                    tokens.emplace_back(source, TokenType::IDENT, offset, len);
+                    tokens.emplace_back(source, TokenKind::IDENT, offset, len);
 
                 offset += len;
                 continue;
@@ -106,21 +114,21 @@ public:
 
             if (offset + 2 < maxlen && isTwoCharOperator(source.substr(offset, 2)))
             {
-                tokens.emplace_back(source, TokenType::OPERATOR, offset, 2);
+                tokens.emplace_back(source, TokenKind::OPERATOR, offset, 2);
                 offset += 2;
                 continue;
             }
 
             if (isOneCharOperator(source.substr(offset, 1)))
             {
-                tokens.emplace_back(source, TokenType::OPERATOR, offset, 1);
+                tokens.emplace_back(source, TokenKind::OPERATOR, offset, 1);
                 offset += 1;
                 continue;
             }
 
             if (isPunctator(source.substr(offset, 1)))
             {
-                tokens.emplace_back(source, TokenType::PUNCT, offset, 1);
+                tokens.emplace_back(source, TokenKind::PUNCT, offset, 1);
                 offset += 1;
                 continue;
             }
@@ -128,7 +136,7 @@ public:
             ++offset;
         }
 
-        tokens.emplace_back(source, TokenType::ENDF, offset, 0);
+        tokens.emplace_back(source, TokenKind::ENDF, offset, 0);
         return TokenViewer(tokens);
     }
 

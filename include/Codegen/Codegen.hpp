@@ -31,26 +31,26 @@ public:
 private:
     void genStmt(Node *node)
     {
-        switch (node->type)
+        switch (node->kind)
         {
-        case NodeType::EXPR_STMT:
+        case NodeKind::EXPR_STMT:
         {
             genExpr(node->lhs);
             return;
         }
-        case NodeType::RETURN:
+        case NodeKind::RETURN:
         {
             genExpr(node->lhs);
             std::cout << "  jmp .L.return\n";
             return;
         }
-        case NodeType::BLOCK:
+        case NodeKind::BLOCK:
         {
             for (Node *n = node->body; n; n = n->next)
                 genStmt(n);
             return;
         }
-        case NodeType::IF:
+        case NodeKind::IF:
         {
             int temp = ++count;
             genExpr(node->cond);
@@ -64,7 +64,7 @@ private:
             Assembler::label(std::format(".L.end.{}", temp));
             return;
         }
-        case NodeType::FOR:
+        case NodeKind::FOR:
         {
             int temp = ++count;
             if (node->init)
@@ -92,19 +92,27 @@ private:
 
     void genExpr(Node *node)
     {
-        switch (node->type)
+        switch (node->kind)
         {
-        case NodeType::NUM:
+        case NodeKind::NUM:
             Assembler::mov(node->val, "rax");
             return;
-        case NodeType::NEG:
+        case NodeKind::NEG:
+            genExpr(node->lhs);
             Assembler::neg("rax");
             return;
-        case NodeType::VAR:
+        case NodeKind::VAR:
             genAddr(node);
             std::cout << "  mov (%rax), %rax\n";
             return;
-        case NodeType::ASSIGN:
+        case NodeKind::DEREF:
+            genExpr(node->lhs);
+            std::cout << "  mov (%rax), %rax\n";
+            return;
+        case NodeKind::ADDR:
+            genAddr(node->lhs);
+            return;
+        case NodeKind::ASSIGN:
             genAddr(node->lhs);
             Assembler::push("rax");
             genExpr(node->rhs);
@@ -120,49 +128,49 @@ private:
         genExpr(node->lhs);
         Assembler::pop("rdi");
 
-        switch (node->type)
+        switch (node->kind)
         {
-        case NodeType::ADD:
+        case NodeKind::ADD:
             Assembler::add("rdi", "rax");
             return;
-        case NodeType::SUB:
+        case NodeKind::SUB:
             Assembler::sub("rdi", "rax");
             return;
-        case NodeType::MUL:
+        case NodeKind::MUL:
             Assembler::imul("rdi", "rax");
             return;
-        case NodeType::DIV:
+        case NodeKind::DIV:
             Assembler::idiv("rdi", "rax");
             return;
-        case NodeType::MOD:
+        case NodeKind::MOD:
             Assembler::idiv("rdi", "rax");
             Assembler::mov("rdx", "rax");
             return;
-        case NodeType::EQ:
-        case NodeType::NE:
-        case NodeType::LE:
-        case NodeType::LT:
-        case NodeType::GE:
-        case NodeType::GT:
+        case NodeKind::EQ:
+        case NodeKind::NE:
+        case NodeKind::LE:
+        case NodeKind::LT:
+        case NodeKind::GE:
+        case NodeKind::GT:
             Assembler::cmp("rdi", "rax");
-            switch (node->type)
+            switch (node->kind)
             {
-            case NodeType::EQ:
+            case NodeKind::EQ:
                 Assembler::sete("al");
                 break;
-            case NodeType::NE:
+            case NodeKind::NE:
                 Assembler::setne("al");
                 break;
-            case NodeType::LE:
+            case NodeKind::LE:
                 Assembler::setle("al");
                 break;
-            case NodeType::LT:
+            case NodeKind::LT:
                 Assembler::setl("al");
                 break;
-            case NodeType::GE:
+            case NodeKind::GE:
                 Assembler::setge("al");
                 break;
-            case NodeType::GT:
+            case NodeKind::GT:
                 Assembler::setg("al");
                 break;
             default:
@@ -181,10 +189,19 @@ private:
 private:
     void genAddr(Node *node)
     {
-        if (node->type == NodeType::VAR)
+        if (node->kind == NodeKind::VAR)
         {
+        }
+        switch (node->kind)
+        {
+        case NodeKind::VAR:
             Assembler::lea(node->var->offset, "rbp", "rax");
             return;
+        case NodeKind::DEREF:
+            genExpr(node->lhs);
+            return;
+        default:
+            break;
         }
 
         DiagnosticEngine::errorOnTok(node->tok, "not a lvalue");

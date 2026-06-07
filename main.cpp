@@ -6,7 +6,8 @@ int main(int argc, char *argv[])
 {
     Lexer lexer;
     auto toks = lexer.tokenize(argv[1]);
-    Parser parser{toks};
+    Sema sema;
+    Parser parser{toks, sema};
     auto func = parser.parse();
     Codegen{}.generate(func);
 }

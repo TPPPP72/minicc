@@ -3,6 +3,7 @@
 #include <AST/Function.hpp>
 #include <Diag/Diag.hpp>
 #include <Lexer/Lexer.hpp>
+#include <Sema/Sema.hpp>
 #include <charconv>
 
 /// TODO: Here we need a Arena Allocator
@@ -10,7 +11,7 @@
 class Parser
 {
 public:
-    Parser(TokenViewer token_viewer) : tok(token_viewer), locals(nullptr) {}
+    Parser(TokenViewer token_viewer, Sema &sema) : tok(token_viewer), m_sema(sema), locals(nullptr) {}
     Function *parse()
     {
         auto func    = new Function{};
@@ -24,16 +25,18 @@ private:
     {
         if (tok.tryConsumeToken("return"))
         {
-            auto node = new Node{NodeType::RETURN, expr()};
-            node->tok = tok.prev();
+            auto kw_tok = tok.prev();
+            auto node   = new Node{NodeKind::RETURN, expr()};
+            node->tok   = kw_tok;
             tok.consumeToken(";");
             return node;
         }
 
         if (tok.tryConsumeToken("if"))
         {
-            auto node = new Node{NodeType::IF};
-            node->tok = tok.prev();
+            auto kw_tok = tok.prev();
+            auto node   = new Node{NodeKind::IF};
+            node->tok   = kw_tok;
             tok.consumeToken("(");
             node->cond = expr();
             tok.consumeToken(")");
@@ -45,11 +48,13 @@ private:
 
         if (tok.tryConsumeToken("for"))
         {
-            auto node = new Node{NodeType::FOR};
-            node->tok = tok.prev();
+            auto kw_tok = tok.prev();
+            auto node   = new Node{NodeKind::FOR};
+            node->tok   = kw_tok;
             tok.consumeToken("(");
             node->init = exprStmt();
-            if (!tok.tryConsumeToken(";")){
+            if (!tok.tryConsumeToken(";"))
+            {
                 node->cond = expr();
                 tok.consumeToken(";");
             }
@@ -62,9 +67,11 @@ private:
             return node;
         }
 
-        if(tok.tryConsumeToken("while")){
-            auto node = new Node{NodeType::FOR};
-            node->tok = tok.prev();
+        if (tok.tryConsumeToken("while"))
+        {
+            auto kw_tok = tok.prev();
+            auto node   = new Node{NodeKind::FOR};
+            node->tok   = kw_tok;
             tok.consumeToken("(");
             node->cond = expr();
             tok.consumeToken(")");
@@ -85,21 +92,22 @@ private:
         while (!tok.tryConsumeToken("}"))
             cur = cur->next = stmt();
 
-        auto node  = new Node{NodeType::BLOCK};
-        node->tok = tok.getToken();
+        auto node  = new Node{NodeKind::BLOCK};
+        node->tok  = tok.getToken();
         node->body = head.next;
         return node;
     }
 
     Node *exprStmt()
     {
-        if (tok.tryConsumeToken(";")){
-            auto node = new Node{NodeType::BLOCK};
+        if (tok.tryConsumeToken(";"))
+        {
+            auto node = new Node{NodeKind::BLOCK};
             node->tok = tok.prev();
             return node;
         }
 
-        auto node = new Node{NodeType::EXPR_STMT, expr()};
+        auto node = new Node{NodeKind::EXPR_STMT, expr()};
         tok.consumeToken(";");
         return node;
     }
@@ -111,16 +119,21 @@ private:
 
     Node *assign()
     {
-        auto lhs = equality();
+        auto node = equality();
 
         if (tok.tryConsumeToken("="))
         {
-            auto rhs = new Node{NodeType::ASSIGN, lhs, assign()};
-            rhs->tok = tok.prev();
-            return rhs;
+            auto op_tok = tok.prev();
+            auto rhs = assign();
+            node        = new Node{NodeKind::ASSIGN, node, rhs};
+            node->type_id = node->lhs->type_id;
+            node->tok   = op_tok;
+            if (node->lhs->kind == NodeKind::VAR)
+                node->lhs->var->type_id = rhs->type_id;
+            return node;
         }
 
-        return lhs;
+        return node;
     }
 
     Node *equality()
@@ -131,15 +144,19 @@ private:
         {
             if (tok.tryConsumeToken("=="))
             {
-                node = new Node{NodeType::EQ, node, relational()};
-                node->tok = tok.prev();
+                auto op_tok = tok.prev();
+                node        = new Node{NodeKind::EQ, node, relational()};
+                node->type_id = m_sema.getIntTypeId();
+                node->tok   = op_tok;
                 continue;
             }
 
             if (tok.tryConsumeToken("!="))
             {
-                node = new Node{NodeType::NE, node, relational()};
-                node->tok = tok.prev();
+                auto op_tok = tok.prev();
+                node        = new Node{NodeKind::NE, node, relational()};
+                node->type_id = m_sema.getIntTypeId();
+                node->tok   = op_tok;
                 continue;
             }
 
@@ -155,29 +172,37 @@ private:
         {
             if (tok.tryConsumeToken("<="))
             {
-                node = new Node{NodeType::LE, node, add()};
-                node->tok = tok.prev();
+                auto op_tok = tok.prev();
+                node        = new Node{NodeKind::LE, node, add()};
+                node->type_id = m_sema.getIntTypeId();
+                node->tok   = op_tok;
                 continue;
             }
 
             if (tok.tryConsumeToken("<"))
             {
-                node = new Node{NodeType::LT, node, add()};
-                node->tok = tok.prev();
+                auto op_tok = tok.prev();
+                node        = new Node{NodeKind::LT, node, add()};
+                node->type_id = m_sema.getIntTypeId();
+                node->tok   = op_tok;
                 continue;
             }
 
             if (tok.tryConsumeToken(">="))
             {
-                node = new Node{NodeType::GE, node, add()};
-                node->tok = tok.prev();
+                auto op_tok = tok.prev();
+                node        = new Node{NodeKind::GE, node, add()};
+                node->type_id = m_sema.getIntTypeId();
+                node->tok   = op_tok;
                 continue;
             }
 
             if (tok.tryConsumeToken(">"))
             {
-                node = new Node{NodeType::GT, node, add()};
-                node->tok = tok.prev();
+                auto op_tok = tok.prev();
+                node        = new Node{NodeKind::GT, node, add()};
+                node->type_id = m_sema.getIntTypeId();
+                node->tok   = op_tok;
                 continue;
             }
 
@@ -193,15 +218,15 @@ private:
         {
             if (tok.tryConsumeToken("+"))
             {
-                node = new Node{NodeType::ADD, node, mul()};
-                node->tok = tok.prev();
+                auto op_tok = tok.prev();
+                node        = m_sema.buildAdd(node, mul(), op_tok);
                 continue;
             }
 
             if (tok.tryConsumeToken("-"))
             {
-                node = new Node{NodeType::SUB, node, mul()};
-                node->tok = tok.prev();
+                auto op_tok = tok.prev();
+                node        = m_sema.buildSub(node, mul(), op_tok);
                 continue;
             }
 
@@ -217,22 +242,28 @@ private:
         {
             if (tok.tryConsumeToken("*"))
             {
-                node = new Node{NodeType::MUL, node, unary()};
-                node->tok = tok.prev();
+                auto op_tok = tok.prev();
+                node        = new Node{NodeKind::MUL, node, unary()};
+                node->type_id = node->lhs->type_id;
+                node->tok   = op_tok;
                 continue;
             }
 
             if (tok.tryConsumeToken("/"))
             {
-                node = new Node{NodeType::DIV, node, unary()};
-                node->tok = tok.prev();
+                auto op_tok = tok.prev();
+                node        = new Node{NodeKind::DIV, node, unary()};
+                node->type_id = node->lhs->type_id;
+                node->tok   = op_tok;
                 continue;
             }
 
             if (tok.tryConsumeToken("%"))
             {
-                node = new Node{NodeType::MOD, node, unary()};
-                node->tok = tok.prev();
+                auto op_tok = tok.prev();
+                node        = new Node{NodeKind::MOD, node, unary()};
+                node->type_id = node->lhs->type_id;
+                node->tok   = op_tok;
                 continue;
             }
 
@@ -245,10 +276,25 @@ private:
         if (tok.tryConsumeToken("+"))
             return unary();
 
-        if (tok.tryConsumeToken("-")){
-            auto node = new Node{NodeType::NEG, unary()};
-            node->tok = tok.prev();
+        if (tok.tryConsumeToken("-"))
+        {
+            auto op_tok = tok.prev();
+            auto node   = new Node{NodeKind::NEG, unary()};
+            node->type_id = node->lhs->type_id;
+            node->tok   = op_tok;
             return node;
+        }
+
+        if (tok.tryConsumeToken("*"))
+        {
+            auto op_tok = tok.prev();
+            return m_sema.buildDeref(unary(), op_tok);
+        }
+
+        if (tok.tryConsumeToken("&"))
+        {
+            auto op_tok = tok.prev();
+            return m_sema.buildAddr(unary(), op_tok);
         }
 
         return primary();
@@ -265,25 +311,27 @@ private:
 
         auto token = tok.getToken();
 
-        if (token.type == TokenType::IDENT)
+        if (token.kind == TokenKind::IDENT)
         {
             auto var = findVar();
             if (!var)
-                var = newLvar();
+                var = newLvar(m_sema.getIntTypeId());
             tok.skipToken();
-            auto node = new Node{var};
-            node->tok = tok.prev();
+            auto node     = new Node{var};
+            node->tok     = tok.prev();
+            node->type_id = var->type_id;
             return node;
         }
 
-        if (token.type == TokenType::NUM)
+        if (token.kind == TokenKind::NUM)
         {
             std::int32_t value;
             auto content = token.getContent();
             std::from_chars(content.begin(), content.end(), value);
             auto node = new Node{value};
             tok.skipToken();
-            node->tok = tok.prev();
+            node->tok     = tok.prev();
+            node->type_id = m_sema.getIntTypeId();
             return node;
         }
 
@@ -291,11 +339,12 @@ private:
     }
 
 private:
-    Object *newLvar()
+    Object *newLvar(TypeId tid)
     {
         auto var  = new Object{};
         var->name = tok.getToken().getContent();
         var->next = locals;
+        var->type_id = tid;
         locals    = var;
         return var;
     }
@@ -312,5 +361,6 @@ private:
 
 private:
     TokenViewer tok;
+    Sema &m_sema;
     Object *locals;
 };
