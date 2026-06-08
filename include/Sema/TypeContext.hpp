@@ -20,7 +20,7 @@ public:
         return types.size() - 1;
     }
 
-    const Type &get(TypeId id) const { return types[id]; }
+    const Type &getType(TypeId id) const { return types[id]; }
 
 private:
     std::vector<Type> types;

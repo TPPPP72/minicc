@@ -1,6 +1,6 @@
 #pragma once
 
-#include <AST/Object.hpp>
+#include <Scope/Object.hpp>
 #include <AST/Type.hpp>
 #include <Lexer/Token.hpp>
 #include <cstdint>
