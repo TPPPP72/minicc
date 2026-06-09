@@ -4,6 +4,8 @@
 #include <Codegen/Assembler.hpp>
 #include <Diag/Diag.hpp>
 
+using namespace std::string_view_literals;
+
 class Codegen
 {
 public:
@@ -141,6 +143,22 @@ private:
             std::cout << "  mov %rax, (%rdi)\n";
             return;
         }
+        case NodeKind::FUNCALL:
+        {
+            auto func_node = static_cast<FuncCallNode *>(node);
+            for (auto arg : func_node->args)
+            {
+                genExpr(arg);
+                Assembler::push("rax");
+            }
+
+            for (auto i = func_node->args.size(); i > 0; --i)
+                Assembler::pop(regs[i - 1]);
+
+            Assembler::mov(0, "rax");
+            Assembler::call(func_node->func_name);
+            return;
+        }
         default:
             break;
         }
@@ -214,12 +232,14 @@ private:
     {
         switch (node->kind)
         {
-        case NodeKind::VAR:{
+        case NodeKind::VAR:
+        {
             auto var_node = static_cast<VarNode *>(node);
             Assembler::lea(var_node->var->offset, "rbp", "rax");
             return;
         }
-        case NodeKind::DEREF:{
+        case NodeKind::DEREF:
+        {
             auto unary_node = static_cast<UnaryNode *>(node);
             genExpr(unary_node->lhs);
             return;
@@ -249,5 +269,6 @@ private:
     }
 
 private:
+    std::array<std::string_view, 6> regs{"rdi"sv, "rsi"sv, "rdx"sv, "rcx"sv, "r8"sv, "r9"sv};
     int count{};
 };

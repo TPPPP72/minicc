@@ -157,6 +157,27 @@ private:
         return assign();
     }
 
+    Node *funCall(){
+        auto identifier = tok.getToken();
+
+        auto node = new FuncCallNode{identifier.getContent(), identifier};
+        node->type_id = m_sema.getTypeContext().getIntTypeId();
+
+        tok.skipToken();
+        tok.skipToken();
+
+        bool is_first_arg{true};
+        while(!tok.tryConsumeToken(")")){
+            if(!is_first_arg)
+                tok.consumeToken(",");
+
+            node->args.emplace_back(assign());
+            is_first_arg = false;
+        }
+
+        return node;
+    }
+
     Node *assign()
     {
         auto node = equality();
@@ -357,6 +378,9 @@ private:
 
         if (token.kind == TokenKind::IDENT)
         {
+            if (tok.next().getContent() == "(")
+                return funCall();
+
             auto var = findVarByName(token.getContent());
             if (!var)
                 DiagnosticEngine::errorOnTok(token, "undeclared identifier '{}'", token.getContent());

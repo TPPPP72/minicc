@@ -154,6 +154,10 @@ public:
         std::cout << "  jmp " << label << "\n";
     }
 
+    static void call(std::string_view label){
+        std::cout << "  call " << label << "\n";
+    }
+
     static void ret()
     {
         std::cout << "  ret\n";
