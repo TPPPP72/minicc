@@ -29,7 +29,7 @@ private:
         if (tok.tryConsumeToken("return"))
         {
             auto kw_tok = tok.prev();
-            auto node   = new Node{NodeKind::RETURN, expr()};
+            auto node   = new ReturnNode(expr(), kw_tok);
             node->tok   = kw_tok;
             tok.consumeToken(";");
             return node;
@@ -38,7 +38,7 @@ private:
         if (tok.tryConsumeToken("if"))
         {
             auto kw_tok = tok.prev();
-            auto node   = new Node{NodeKind::IF};
+            auto node   = new IfNode(kw_tok);
             node->tok   = kw_tok;
             tok.consumeToken("(");
             node->cond = expr();
@@ -52,7 +52,7 @@ private:
         if (tok.tryConsumeToken("for"))
         {
             auto kw_tok = tok.prev();
-            auto node   = new Node{NodeKind::FOR};
+            auto node   = new ForNode{kw_tok};
             node->tok   = kw_tok;
             tok.consumeToken("(");
             node->init = exprStmt();
@@ -73,7 +73,7 @@ private:
         if (tok.tryConsumeToken("while"))
         {
             auto kw_tok = tok.prev();
-            auto node   = new Node{NodeKind::FOR};
+            auto node   = new ForNode{kw_tok};
             node->tok   = kw_tok;
             tok.consumeToken("(");
             node->cond = expr();
@@ -90,14 +90,15 @@ private:
 
     Node *compoundStmt()
     {
-        Node head = {};
-        Node *cur = &head;
-        while (!tok.tryConsumeToken("}"))
-            cur = cur->next = stmt();
+        auto node = new BlockNode(tok.getToken());
 
-        auto node  = new Node{NodeKind::BLOCK};
-        node->tok  = tok.getToken();
-        node->body = head.next;
+        while (!tok.tryConsumeToken("}"))
+        {
+            if (tok.getToken().getContent() == "int")
+                node->stmts.push_back(declaration());
+            else
+                node->stmts.push_back(stmt());
+        }
         return node;
     }
 
@@ -105,8 +106,7 @@ private:
     {
         TypeId base_tid = declSpec();
 
-        Node head{};
-        Node *cur     = &head;
+        auto node     = new BlockNode(tok.getToken());
         int var_count = 0;
 
         while (!tok.tryConsumeToken(";"))
@@ -126,37 +126,28 @@ private:
 
             if (tok.tryConsumeToken("="))
             {
-                auto lhs     = new Node{NodeKind::VAR};
-                lhs->var     = var;
+                auto lhs     = new VarNode{var, name_tok};
                 lhs->type_id = final_tid;
-                lhs->tok     = name_tok;
 
                 auto rhs = assign();
 
-                auto assign_node     = new Node{NodeKind::ASSIGN, lhs, rhs};
+                auto assign_node     = new BinaryNode(NodeKind::ASSIGN, lhs, rhs, name_tok);
                 assign_node->type_id = final_tid;
-                assign_node->tok     = name_tok;
 
-                cur = cur->next = new Node{NodeKind::EXPR_STMT, assign_node};
+                node->stmts.push_back(new ExprStmtNode(assign_node, name_tok));
             }
         }
 
-        auto node  = new Node{NodeKind::BLOCK};
-        node->tok  = tok.prev();
-        node->body = head.next;
+        node->tok = tok.prev();
         return node;
     }
 
     Node *exprStmt()
     {
         if (tok.tryConsumeToken(";"))
-        {
-            auto node = new Node{NodeKind::BLOCK};
-            node->tok = tok.prev();
-            return node;
-        }
+            return new BlockNode(tok.prev());
 
-        auto node = new Node{NodeKind::EXPR_STMT, expr()};
+        auto node = new ExprStmtNode(expr(), tok.getToken());
         tok.consumeToken(";");
         return node;
     }
@@ -172,14 +163,16 @@ private:
 
         if (tok.tryConsumeToken("="))
         {
-            auto op_tok   = tok.prev();
-            auto rhs      = assign();
-            node          = new Node{NodeKind::ASSIGN, node, rhs};
-            node->type_id = node->lhs->type_id;
-            node->tok     = op_tok;
-            if (node->lhs->kind == NodeKind::VAR)
-                node->lhs->var->type_id = rhs->type_id;
-            return node;
+            auto op_tok          = tok.prev();
+            auto rhs             = assign();
+            auto assign_node     = new BinaryNode(NodeKind::ASSIGN, node, rhs, op_tok);
+            assign_node->type_id = node->type_id;
+            if (node->kind == NodeKind::VAR)
+            {
+                auto var_node          = static_cast<VarNode *>(node);
+                var_node->var->type_id = rhs->type_id;
+            }
+            return assign_node;
         }
 
         return node;
@@ -194,18 +187,18 @@ private:
             if (tok.tryConsumeToken("=="))
             {
                 auto op_tok   = tok.prev();
-                node          = new Node{NodeKind::EQ, node, relational()};
+                auto rhs      = relational();
+                node          = new BinaryNode(NodeKind::EQ, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
-                node->tok     = op_tok;
                 continue;
             }
 
             if (tok.tryConsumeToken("!="))
             {
                 auto op_tok   = tok.prev();
-                node          = new Node{NodeKind::NE, node, relational()};
+                auto rhs      = relational();
+                node          = new BinaryNode(NodeKind::NE, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
-                node->tok     = op_tok;
                 continue;
             }
 
@@ -222,36 +215,36 @@ private:
             if (tok.tryConsumeToken("<="))
             {
                 auto op_tok   = tok.prev();
-                node          = new Node{NodeKind::LE, node, add()};
+                auto rhs      = add();
+                node          = new BinaryNode(NodeKind::LE, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
-                node->tok     = op_tok;
                 continue;
             }
 
             if (tok.tryConsumeToken("<"))
             {
                 auto op_tok   = tok.prev();
-                node          = new Node{NodeKind::LT, node, add()};
+                auto rhs      = add();
+                node          = new BinaryNode(NodeKind::LT, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
-                node->tok     = op_tok;
                 continue;
             }
 
             if (tok.tryConsumeToken(">="))
             {
                 auto op_tok   = tok.prev();
-                node          = new Node{NodeKind::GE, node, add()};
+                auto rhs      = add();
+                node          = new BinaryNode(NodeKind::GE, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
-                node->tok     = op_tok;
                 continue;
             }
 
             if (tok.tryConsumeToken(">"))
             {
                 auto op_tok   = tok.prev();
-                node          = new Node{NodeKind::GT, node, add()};
+                auto rhs      = add();
+                node          = new BinaryNode(NodeKind::GT, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
-                node->tok     = op_tok;
                 continue;
             }
 
@@ -292,27 +285,30 @@ private:
             if (tok.tryConsumeToken("*"))
             {
                 auto op_tok   = tok.prev();
-                node          = new Node{NodeKind::MUL, node, unary()};
-                node->type_id = node->lhs->type_id;
-                node->tok     = op_tok;
+                auto rhs      = unary();
+                TypeId ty     = node->type_id;
+                node          = new BinaryNode(NodeKind::MUL, node, rhs, op_tok);
+                node->type_id = ty;
                 continue;
             }
 
             if (tok.tryConsumeToken("/"))
             {
                 auto op_tok   = tok.prev();
-                node          = new Node{NodeKind::DIV, node, unary()};
-                node->type_id = node->lhs->type_id;
-                node->tok     = op_tok;
+                auto rhs      = unary();
+                TypeId ty     = node->type_id;
+                node          = new BinaryNode(NodeKind::DIV, node, rhs, op_tok);
+                node->type_id = ty;
                 continue;
             }
 
             if (tok.tryConsumeToken("%"))
             {
                 auto op_tok   = tok.prev();
-                node          = new Node{NodeKind::MOD, node, unary()};
-                node->type_id = node->lhs->type_id;
-                node->tok     = op_tok;
+                auto rhs      = unary();
+                TypeId ty     = node->type_id;
+                node          = new BinaryNode(NodeKind::MOD, node, rhs, op_tok);
+                node->type_id = ty;
                 continue;
             }
 
@@ -328,9 +324,8 @@ private:
         if (tok.tryConsumeToken("-"))
         {
             auto op_tok   = tok.prev();
-            auto node     = new Node{NodeKind::NEG, unary()};
+            auto node     = new UnaryNode(NodeKind::NEG, unary(), op_tok);
             node->type_id = node->lhs->type_id;
-            node->tok     = op_tok;
             return node;
         }
 
@@ -367,8 +362,7 @@ private:
                 DiagnosticEngine::errorOnTok(token, "undeclared identifier '{}'", token.getContent());
 
             tok.skipToken();
-            auto node     = new Node{var};
-            node->tok     = tok.prev();
+            auto node     = new VarNode{var, tok.prev()};
             node->type_id = var->type_id;
             return node;
         }
@@ -378,9 +372,8 @@ private:
             std::int32_t value;
             auto content = token.getContent();
             std::from_chars(content.begin(), content.end(), value);
-            auto node = new Node{value};
+            auto node = new NumNode{value, tok.getToken()};
             tok.skipToken();
-            node->tok     = tok.prev();
             node->type_id = m_sema.getTypeContext().getIntTypeId();
             return node;
         }

@@ -25,9 +25,8 @@ public:
 
         if (l.kind == TypeKind::INT && r.kind == TypeKind::INT)
         {
-            Node *node    = new Node(NodeKind::ADD, lhs, rhs);
+            Node *node    = new BinaryNode{NodeKind::ADD, lhs, rhs, tok};
             node->type_id = m_ty_ctx.getIntTypeId();
-            node->tok     = tok;
             return node;
         }
 
@@ -37,13 +36,12 @@ public:
         if (l.kind == TypeKind::INT && r.kind == TypeKind::PTR)
             std::swap(lhs, rhs);
 
-        auto scale      = new Node{8};
+        auto scale      = new NumNode{8};
         scale->type_id  = m_ty_ctx.getIntTypeId();
-        auto factor     = new Node{NodeKind::MUL, rhs, scale};
+        auto factor     = new BinaryNode{NodeKind::MUL, rhs, scale};
         factor->type_id = m_ty_ctx.getIntTypeId();
-        auto node       = new Node{NodeKind::ADD, lhs, factor};
+        auto node       = new BinaryNode{NodeKind::ADD, lhs, factor, tok};
         node->type_id   = lhs->type_id;
-        node->tok       = tok;
         return node;
     }
 
@@ -54,20 +52,18 @@ public:
 
         if (l.kind == TypeKind::INT && r.kind == TypeKind::INT)
         {
-            auto result     = new Node(NodeKind::SUB, lhs, rhs);
+            auto result     = new BinaryNode(NodeKind::SUB, lhs, rhs, tok);
             result->type_id = m_ty_ctx.getIntTypeId();
-            result->tok     = tok;
             return result;
         }
 
         if (l.kind == TypeKind::PTR && r.kind == TypeKind::PTR)
         {
-            auto node         = new Node{NodeKind::SUB, lhs, rhs};
+            auto node         = new BinaryNode{NodeKind::SUB, lhs, rhs, tok};
             node->type_id     = m_ty_ctx.getIntTypeId();
-            node->tok         = tok;
-            auto scale        = new Node{8};
+            auto scale        = new NumNode{8};
             scale->type_id    = m_ty_ctx.getIntTypeId();
-            auto div_node     = new Node{NodeKind::DIV, node, scale};
+            auto div_node     = new BinaryNode{NodeKind::DIV, node, scale};
             div_node->type_id = m_ty_ctx.getIntTypeId();
             return div_node;
         }
@@ -75,13 +71,12 @@ public:
         if (l.kind == TypeKind::INT && r.kind == TypeKind::PTR)
             DiagnosticEngine::errorOnTok(tok, "invalid operands");
 
-        auto scale      = new Node{8};
+        auto scale      = new NumNode{8};
         scale->type_id  = m_ty_ctx.getIntTypeId();
-        auto factor     = new Node{NodeKind::MUL, rhs, scale};
+        auto factor     = new BinaryNode{NodeKind::MUL, rhs, scale};
         factor->type_id = m_ty_ctx.getIntTypeId();
-        auto node       = new Node{NodeKind::SUB, lhs, factor};
+        auto node       = new BinaryNode{NodeKind::SUB, lhs, factor, tok};
         node->type_id   = lhs->type_id;
-        node->tok       = tok;
         return node;
     }
 
@@ -89,9 +84,8 @@ public:
     {
         Type l = m_ty_ctx.getType(lhs->type_id);
 
-        auto node     = new Node{NodeKind::ADDR, lhs};
+        auto node     = new UnaryNode{NodeKind::ADDR, lhs, tok};
         node->type_id = m_ty_ctx.getPointerTypeId(lhs->type_id);
-        node->tok     = tok;
         return node;
     }
 
@@ -102,9 +96,8 @@ public:
         if (l.kind != TypeKind::PTR)
             DiagnosticEngine::errorOnTok(tok, "invalid operands");
 
-        auto node     = new Node{NodeKind::DEREF, lhs};
+        auto node     = new UnaryNode{NodeKind::DEREF, lhs, tok};
         node->type_id = m_ty_ctx.getType(lhs->type_id).base_type_id;
-        node->tok     = tok;
         return node;
     }
 

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "AST/Node.hpp"
 #include <AST/Function.hpp>
 #include <Codegen/Assembler.hpp>
 #include <Diag/Diag.hpp>
@@ -19,8 +18,9 @@ public:
         Assembler::mov("rsp", "rbp");
         Assembler::sub(func->stack_size, "rsp");
 
-        for (auto n = func->body; n; n = n->next)
-            genStmt(n);
+        auto block_node = static_cast<BlockNode *>(func->body);
+        for (auto stmt : block_node->stmts)
+            genStmt(stmt);
 
         Assembler::label(".L.return");
         Assembler::mov("rbp", "rsp");
@@ -35,50 +35,55 @@ private:
         {
         case NodeKind::EXPR_STMT:
         {
-            genExpr(node->lhs);
+            auto expr_stmt_node = static_cast<ExprStmtNode *>(node);
+            genExpr(expr_stmt_node->expr);
             return;
         }
         case NodeKind::RETURN:
         {
-            genExpr(node->lhs);
+            auto ret_node = static_cast<ReturnNode *>(node);
+            genExpr(ret_node->expr);
             std::cout << "  jmp .L.return\n";
             return;
         }
         case NodeKind::BLOCK:
         {
-            for (Node *n = node->body; n; n = n->next)
-                genStmt(n);
+            auto block_node = static_cast<BlockNode *>(node);
+            for (auto stmt : block_node->stmts)
+                genStmt(stmt);
             return;
         }
         case NodeKind::IF:
         {
-            int temp = ++count;
-            genExpr(node->cond);
+            auto if_node = static_cast<IfNode *>(node);
+            int temp     = ++count;
+            genExpr(if_node->cond);
             Assembler::cmp(0, "rax");
             Assembler::je(std::format(".L.else.{}", temp));
-            genStmt(node->then);
+            genStmt(if_node->then);
             Assembler::jmp(std::format(".L.end.{}", temp));
             Assembler::label(std::format(".L.else.{}", temp));
-            if (node->els)
-                genStmt(node->els);
+            if (if_node->els)
+                genStmt(if_node->els);
             Assembler::label(std::format(".L.end.{}", temp));
             return;
         }
         case NodeKind::FOR:
         {
-            int temp = ++count;
-            if (node->init)
-                genStmt(node->init);
+            auto for_node = static_cast<ForNode *>(node);
+            int temp      = ++count;
+            if (for_node->init)
+                genStmt(for_node->init);
             Assembler::label(std::format(".L.begin.{}", temp));
-            if (node->cond)
+            if (for_node->cond)
             {
-                genExpr(node->cond);
+                genExpr(for_node->cond);
                 Assembler::cmp(0, "rax");
                 Assembler::je(std::format(".L.end.{}", temp));
             }
-            genStmt(node->then);
-            if (node->inc)
-                genExpr(node->inc);
+            genStmt(for_node->then);
+            if (for_node->inc)
+                genExpr(for_node->inc);
             Assembler::jmp(std::format(".L.begin.{}", temp));
             Assembler::label(std::format(".L.end.{}", temp));
             return;
@@ -95,40 +100,58 @@ private:
         switch (node->kind)
         {
         case NodeKind::NUM:
-            Assembler::mov(node->val, "rax");
+        {
+            auto num_node = static_cast<NumNode *>(node);
+            Assembler::mov(num_node->val, "rax");
             return;
+        }
         case NodeKind::NEG:
-            genExpr(node->lhs);
+        {
+            auto unary_node = static_cast<UnaryNode *>(node);
+            genExpr(unary_node->lhs);
             Assembler::neg("rax");
             return;
+        }
         case NodeKind::VAR:
+        {
             genAddr(node);
             std::cout << "  mov (%rax), %rax\n";
             return;
+        }
         case NodeKind::DEREF:
-            genExpr(node->lhs);
+        {
+            auto unary_node = static_cast<UnaryNode *>(node);
+            genExpr(unary_node->lhs);
             std::cout << "  mov (%rax), %rax\n";
             return;
+        }
         case NodeKind::ADDR:
-            genAddr(node->lhs);
+        {
+            auto unary_node = static_cast<UnaryNode *>(node);
+            genAddr(unary_node->lhs);
             return;
+        }
         case NodeKind::ASSIGN:
-            genAddr(node->lhs);
+        {
+            auto binary_node = static_cast<BinaryNode *>(node);
+            genAddr(binary_node->lhs);
             Assembler::push("rax");
-            genExpr(node->rhs);
+            genExpr(binary_node->rhs);
             Assembler::pop("rdi");
             std::cout << "  mov %rax, (%rdi)\n";
             return;
+        }
         default:
             break;
         }
 
-        genExpr(node->rhs);
+        auto binary_node = static_cast<BinaryNode *>(node);
+        genExpr(binary_node->rhs);
         Assembler::push("rax");
-        genExpr(node->lhs);
+        genExpr(binary_node->lhs);
         Assembler::pop("rdi");
 
-        switch (node->kind)
+        switch (binary_node->kind)
         {
         case NodeKind::ADD:
             Assembler::add("rdi", "rax");
@@ -153,7 +176,7 @@ private:
         case NodeKind::GE:
         case NodeKind::GT:
             Assembler::cmp("rdi", "rax");
-            switch (node->kind)
+            switch (binary_node->kind)
             {
             case NodeKind::EQ:
                 Assembler::sete("al");
@@ -189,17 +212,18 @@ private:
 private:
     void genAddr(Node *node)
     {
-        if (node->kind == NodeKind::VAR)
-        {
-        }
         switch (node->kind)
         {
-        case NodeKind::VAR:
-            Assembler::lea(node->var->offset, "rbp", "rax");
+        case NodeKind::VAR:{
+            auto var_node = static_cast<VarNode *>(node);
+            Assembler::lea(var_node->var->offset, "rbp", "rax");
             return;
-        case NodeKind::DEREF:
-            genExpr(node->lhs);
+        }
+        case NodeKind::DEREF:{
+            auto unary_node = static_cast<UnaryNode *>(node);
+            genExpr(unary_node->lhs);
             return;
+        }
         default:
             break;
         }
