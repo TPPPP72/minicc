@@ -11,16 +11,59 @@
 class Parser
 {
 public:
-    Parser(TokenViewer token_viewer, Sema &sema) : tok(token_viewer), m_sema(sema), locals(nullptr) {}
-    Function *parse()
+    Parser(TokenViewer token_viewer, Sema &sema) : tok(token_viewer), m_sema(sema) {}
+    std::vector<Function *> parseProgram()
     {
-        auto func    = new Function{};
-        func->body   = stmt();
-        func->locals = locals;
-        return func;
+        std::vector<Function *> program;
+
+        while (tok.getToken().kind != TokenKind::ENDF)
+        {
+            m_locals.clear();
+            program.push_back(parseFunction());
+        }
+
+        return program;
     }
 
 private:
+    Function *parseFunction()
+    {
+        TypeId ret_tid = declSpec();
+
+        std::string_view func_name = getIdent();
+        Token name_tok             = tok.getToken();
+        tok.skipToken();
+
+        tok.skipToken();
+
+        auto func    = new Function{};
+        func->name   = func_name;
+
+        std::uint32_t param_count{};
+
+        while (!tok.tryConsumeToken(")"))
+        {
+            if (param_count > 0)
+                tok.consumeToken(",");
+
+            TypeId p_base = declSpec();
+
+            std::string_view p_name = getIdent();
+            tok.skipToken();
+
+            Object *param_var = newLvarWithName(p_name, p_base);
+
+            func->params.push_back(param_var);
+            param_count++;
+        }
+
+        tok.consumeToken("{");
+        func->body   = compoundStmt();
+        func->locals = m_locals;
+
+        return func;
+    }
+
     Node *stmt()
     {
         if (tok.getToken().getContent() == "int")
@@ -157,18 +200,20 @@ private:
         return assign();
     }
 
-    Node *funCall(){
+    Node *funCall()
+    {
         auto identifier = tok.getToken();
 
-        auto node = new FuncCallNode{identifier.getContent(), identifier};
+        auto node     = new FuncCallNode{identifier.getContent(), identifier};
         node->type_id = m_sema.getTypeContext().getIntTypeId();
 
         tok.skipToken();
         tok.skipToken();
 
         bool is_first_arg{true};
-        while(!tok.tryConsumeToken(")")){
-            if(!is_first_arg)
+        while (!tok.tryConsumeToken(")"))
+        {
+            if (!is_first_arg)
                 tok.consumeToken(",");
 
             node->args.emplace_back(assign());
@@ -408,7 +453,7 @@ private:
 private:
     std::string_view getIdent()
     {
-        if (tok.getToken().kind != TokenKind::IDENT)
+        if (tok.getToken().kind != TokenKind::IDENT && tok.getToken().kind != TokenKind::KEYWORD)
             DiagnosticEngine::errorOnTok(tok.getToken(), "expected an identifier");
         return tok.getToken().getContent();
     }
@@ -441,15 +486,14 @@ private:
     {
         auto var     = new Object{};
         var->name    = name;
-        var->next    = locals;
         var->type_id = tid;
-        locals       = var;
-        return var;
+        m_locals.push_back(std::move(var));
+        return m_locals.back();
     }
 
     Object *findVarByName(std::string_view name)
     {
-        for (auto var = locals; var; var = var->next)
+        for (auto var : m_locals)
         {
             if (var->name == name)
                 return var;
@@ -460,5 +504,5 @@ private:
 private:
     TokenViewer tok;
     Sema &m_sema;
-    Object *locals;
+    std::vector<Object *> m_locals;
 };

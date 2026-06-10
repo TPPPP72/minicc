@@ -18,7 +18,7 @@ public:
         std::cout << "  pop %" << dst << '\n';
     }
 
-    static void label(std::string label)
+    static void label(std::string_view label)
     {
         std::cout << label << ":\n";
     }

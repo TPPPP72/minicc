@@ -9,29 +9,39 @@ using namespace std::string_view_literals;
 class Codegen
 {
 public:
-    void generate(Function *func)
+    void genProg(std::vector<Function *> &prog)
+    {
+        for (auto func : prog)
+            genFunc(func);
+    }
+
+private:
+    void genFunc(Function *func)
     {
         assign_lvar_offsets(func);
 
-        std::cout << "  .globl main\n";
-        Assembler::label("main");
+        std::cout << "  .globl " << func->name << '\n';
+        Assembler::label(func->name);
 
         Assembler::push("rbp");
         Assembler::mov("rsp", "rbp");
         Assembler::sub(func->stack_size, "rsp");
 
+        int i = 0;
+        for (auto var : func->params)
+            std::cout << "  mov %" << regs[i++] << ", " << var->offset <<"(%rbp)\n";
+
         auto block_node = static_cast<BlockNode *>(func->body);
         for (auto stmt : block_node->stmts)
-            genStmt(stmt);
+            genStmt(stmt, func->name);
 
-        Assembler::label(".L.return");
+        Assembler::label(std::format(".L.return.{}", func->name));
         Assembler::mov("rbp", "rsp");
         Assembler::pop("rbp");
         Assembler::ret();
     }
 
-private:
-    void genStmt(Node *node)
+    void genStmt(Node *node, std::string_view func_name)
     {
         switch (node->kind)
         {
@@ -45,14 +55,14 @@ private:
         {
             auto ret_node = static_cast<ReturnNode *>(node);
             genExpr(ret_node->expr);
-            std::cout << "  jmp .L.return\n";
+            Assembler::jmp(std::format(".L.return.{}", func_name));
             return;
         }
         case NodeKind::BLOCK:
         {
             auto block_node = static_cast<BlockNode *>(node);
             for (auto stmt : block_node->stmts)
-                genStmt(stmt);
+                genStmt(stmt, func_name);
             return;
         }
         case NodeKind::IF:
@@ -62,11 +72,11 @@ private:
             genExpr(if_node->cond);
             Assembler::cmp(0, "rax");
             Assembler::je(std::format(".L.else.{}", temp));
-            genStmt(if_node->then);
+            genStmt(if_node->then, func_name);
             Assembler::jmp(std::format(".L.end.{}", temp));
             Assembler::label(std::format(".L.else.{}", temp));
             if (if_node->els)
-                genStmt(if_node->els);
+                genStmt(if_node->els, func_name);
             Assembler::label(std::format(".L.end.{}", temp));
             return;
         }
@@ -75,7 +85,7 @@ private:
             auto for_node = static_cast<ForNode *>(node);
             int temp      = ++count;
             if (for_node->init)
-                genStmt(for_node->init);
+                genStmt(for_node->init, func_name);
             Assembler::label(std::format(".L.begin.{}", temp));
             if (for_node->cond)
             {
@@ -83,7 +93,7 @@ private:
                 Assembler::cmp(0, "rax");
                 Assembler::je(std::format(".L.end.{}", temp));
             }
-            genStmt(for_node->then);
+            genStmt(for_node->then, func_name);
             if (for_node->inc)
                 genExpr(for_node->inc);
             Assembler::jmp(std::format(".L.begin.{}", temp));
@@ -260,8 +270,9 @@ private:
     void assign_lvar_offsets(Function *func)
     {
         int offset = 0;
-        for (auto var = func->locals; var; var = var->next)
+        for (auto it = func->locals.rbegin(); it != func->locals.rend(); ++it)
         {
+            auto var = *it;
             offset += 8;
             var->offset = -offset;
         }
