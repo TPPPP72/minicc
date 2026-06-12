@@ -3,12 +3,14 @@
 #include <AST/Function.hpp>
 #include <Codegen/Assembler.hpp>
 #include <Diag/Diag.hpp>
+#include <Sema/Sema.hpp>
 
 using namespace std::string_view_literals;
 
 class Codegen
 {
 public:
+    Codegen(Sema &sema) : m_sema(sema) {}
     void genProg(std::vector<Function *> &prog)
     {
         for (auto func : prog)
@@ -127,14 +129,14 @@ private:
         case NodeKind::VAR:
         {
             genAddr(node);
-            std::cout << "  mov (%rax), %rax\n";
+            load(node);
             return;
         }
         case NodeKind::DEREF:
         {
             auto unary_node = static_cast<UnaryNode *>(node);
             genExpr(unary_node->lhs);
-            std::cout << "  mov (%rax), %rax\n";
+            load(node);
             return;
         }
         case NodeKind::ADDR:
@@ -149,8 +151,7 @@ private:
             genAddr(binary_node->lhs);
             Assembler::push("rax");
             genExpr(binary_node->rhs);
-            Assembler::pop("rdi");
-            std::cout << "  mov %rax, (%rdi)\n";
+            store();
             return;
         }
         case NodeKind::FUNCALL:
@@ -262,6 +263,19 @@ private:
     }
 
 private:
+    void load(Node *node){
+        auto kind = m_sema.getTypeContext().getType(node->type_id).kind;
+        if(kind == TypeKind::ARRAY)
+            return;
+
+        std::cout << "  mov (%rax), %rax\n";
+    }
+
+    void store(){
+        Assembler::pop("rdi");
+        std::cout << "  mov %rax, (%rdi)\n";
+    }
+
     int align_to(int n, int align)
     {
         return (n + align - 1) / align * align;
@@ -273,7 +287,7 @@ private:
         for (auto it = func->locals.rbegin(); it != func->locals.rend(); ++it)
         {
             auto var = *it;
-            offset += 8;
+            offset += m_sema.getTypeContext().getType((*it)->type_id).size;
             var->offset = -offset;
         }
         func->stack_size = align_to(offset, 16);
@@ -281,5 +295,6 @@ private:
 
 private:
     std::array<std::string_view, 6> regs{"rdi"sv, "rsi"sv, "rdx"sv, "rcx"sv, "r8"sv, "r9"sv};
+    Sema &m_sema;
     int count{};
 };

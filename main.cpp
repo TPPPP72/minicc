@@ -9,5 +9,5 @@ int main(int argc, char *argv[])
     Sema sema;
     Parser parser{toks, sema};
     auto prog = parser.parseProgram();
-    Codegen{}.genProg(prog);
+    Codegen{sema}.genProg(prog);
 }

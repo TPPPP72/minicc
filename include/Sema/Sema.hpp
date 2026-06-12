@@ -20,8 +20,11 @@ public:
 
     Node *buildAdd(Node *lhs, Node *rhs, const Token &tok)
     {
-        Type l = m_ty_ctx.getType(lhs->type_id);
-        Type r = m_ty_ctx.getType(rhs->type_id);
+        TypeId lhs_tid = arrayDecay(lhs->type_id);
+        TypeId rhs_tid = arrayDecay(rhs->type_id);
+
+        Type l = m_ty_ctx.getType(lhs_tid);
+        Type r = m_ty_ctx.getType(rhs_tid);
 
         if (l.kind == TypeKind::INT && r.kind == TypeKind::INT)
         {
@@ -34,9 +37,13 @@ public:
             DiagnosticEngine::errorOnTok(tok, "invalid operands");
 
         if (l.kind == TypeKind::INT && r.kind == TypeKind::PTR)
+        {
             std::swap(lhs, rhs);
+            std::swap(l, r);
+            std::swap(lhs_tid, rhs_tid);
+        }
 
-        auto scale      = new NumNode{8};
+        auto scale      = new NumNode(m_ty_ctx.getType(l.base_type_id).size);
         scale->type_id  = m_ty_ctx.getIntTypeId();
         auto factor     = new BinaryNode{NodeKind::MUL, rhs, scale};
         factor->type_id = m_ty_ctx.getIntTypeId();
@@ -47,8 +54,11 @@ public:
 
     Node *buildSub(Node *lhs, Node *rhs, const Token &tok)
     {
-        Type l = m_ty_ctx.getType(lhs->type_id);
-        Type r = m_ty_ctx.getType(rhs->type_id);
+        TypeId lhs_tid = arrayDecay(lhs->type_id);
+        TypeId rhs_tid = arrayDecay(rhs->type_id);
+
+        Type l = m_ty_ctx.getType(lhs_tid);
+        Type r = m_ty_ctx.getType(rhs_tid);
 
         if (l.kind == TypeKind::INT && r.kind == TypeKind::INT)
         {
@@ -61,7 +71,7 @@ public:
         {
             auto node         = new BinaryNode{NodeKind::SUB, lhs, rhs, tok};
             node->type_id     = m_ty_ctx.getIntTypeId();
-            auto scale        = new NumNode{8};
+            auto scale        = new NumNode(m_ty_ctx.getType(l.base_type_id).size);
             scale->type_id    = m_ty_ctx.getIntTypeId();
             auto div_node     = new BinaryNode{NodeKind::DIV, node, scale};
             div_node->type_id = m_ty_ctx.getIntTypeId();
@@ -71,7 +81,7 @@ public:
         if (l.kind == TypeKind::INT && r.kind == TypeKind::PTR)
             DiagnosticEngine::errorOnTok(tok, "invalid operands");
 
-        auto scale      = new NumNode{8};
+        auto scale      = new NumNode(m_ty_ctx.getType(l.base_type_id).size);
         scale->type_id  = m_ty_ctx.getIntTypeId();
         auto factor     = new BinaryNode{NodeKind::MUL, rhs, scale};
         factor->type_id = m_ty_ctx.getIntTypeId();
@@ -84,8 +94,11 @@ public:
     {
         Type l = m_ty_ctx.getType(lhs->type_id);
 
-        auto node     = new UnaryNode{NodeKind::ADDR, lhs, tok};
-        node->type_id = m_ty_ctx.getPointerTypeId(lhs->type_id);
+        auto node = new UnaryNode{NodeKind::ADDR, lhs, tok};
+        if (l.kind == TypeKind::ARRAY)
+            node->type_id = m_ty_ctx.getPointerTypeId(l.base_type_id);
+        else
+            node->type_id = m_ty_ctx.getPointerTypeId(lhs->type_id);
         return node;
     }
 
@@ -93,12 +106,23 @@ public:
     {
         Type l = m_ty_ctx.getType(lhs->type_id);
 
-        if (l.kind != TypeKind::PTR)
+        if (l.base_type_id == 0)
             DiagnosticEngine::errorOnTok(tok, "invalid operands");
 
         auto node     = new UnaryNode{NodeKind::DEREF, lhs, tok};
         node->type_id = m_ty_ctx.getType(lhs->type_id).base_type_id;
         return node;
+    }
+
+private:
+    TypeId arrayDecay(TypeId tid)
+    {
+        auto type = m_ty_ctx.getType(tid);
+
+        if (type.kind == TypeKind::ARRAY)
+            return m_ty_ctx.getPointerTypeId(type.base_type_id);
+
+        return tid;
     }
 
 private:
