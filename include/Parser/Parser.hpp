@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AST/Node.hpp"
 #include <AST/Function.hpp>
 #include <Diag/Diag.hpp>
 #include <Lexer/Lexer.hpp>
@@ -363,6 +364,16 @@ private:
             return m_sema.buildAddr(unary(), op_tok);
         }
 
+        if (tok.tryConsumeToken("sizeof"))
+        {
+            auto op_tok       = tok.prev();
+            auto node         = unary();
+            auto size         = m_sema.getTypeContext().getType(node->type_id).size;
+            auto num_node     = new NumNode(size, op_tok);
+            num_node->type_id = m_sema.getTypeContext().getIntTypeId();
+            return num_node;
+        }
+
         return postfix();
     }
 
@@ -377,7 +388,7 @@ private:
             tok.consumeToken("]");
 
             auto offset = m_sema.buildAdd(node, idx, op_tok);
-            node          = m_sema.buildDeref(offset, op_tok);
+            node        = m_sema.buildDeref(offset, op_tok);
         }
 
         return node;

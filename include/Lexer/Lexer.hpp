@@ -56,10 +56,11 @@ public:
         return false;
     }
 
-    bool isToken(std::string_view content){
+    bool isToken(std::string_view content)
+    {
         if (content == (*m_tokens)[m_index].getContent())
             return true;
-        
+
         return false;
     }
 
@@ -170,6 +171,6 @@ private:
     std::array<std::string_view, 16> twochar_operator{"=="sv, "!="sv, ">="sv, "<="sv, "&&"sv, "||"sv, ">>"sv, "<<"sv, "+="sv, "-="sv, "*="sv, "/="sv, "%="sv, "&="sv, "|="sv, "^="sv};
     std::array<std::string_view, 13> onechar_operator{"="sv, "!"sv, ">"sv, "<"sv, "&"sv, "|"sv, "^"sv, "-"sv, "+"sv, "*"sv, "/"sv, "%"sv, "~"sv};
     std::array<std::string_view, 8> punctator{","sv, ";"sv, "{"sv, "}"sv, "("sv, ")"sv, "["sv, "]"sv};
-    std::array<std::string_view, 10> keywords{"char"sv, "short"sv, "int"sv, "float"sv, "double"sv, "main"sv, "if"sv, "while"sv, "for"sv, "return"sv};
+    std::array<std::string_view, 11> keywords{"char"sv, "short"sv, "int"sv, "float"sv, "double"sv, "main"sv, "if"sv, "while"sv, "for"sv, "return"sv, "sizeof"sv};
     std::vector<Token> tokens;
 };
