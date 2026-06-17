@@ -1,11 +1,14 @@
 #pragma once
 
-#include "AST/Node.hpp"
-#include <AST/Function.hpp>
+#include "AST/Type.hpp"
+#include "Scope/Symbol.hpp"
+#include <Scope/Variable.hpp>
 #include <Diag/Diag.hpp>
 #include <Lexer/Lexer.hpp>
+#include <Scope/Function.hpp>
 #include <Sema/Sema.hpp>
 #include <charconv>
+#include <Util/Tags.hpp>
 
 /// TODO: Here we need a Arena Allocator
 
@@ -13,26 +16,26 @@ class Parser
 {
 public:
     Parser(TokenViewer token_viewer, Sema &sema) : tok(token_viewer), m_sema(sema) {}
-    std::vector<Function *> parseProgram()
+    std::vector<Symbol *> parseProgram()
     {
-        std::vector<Function *> program;
-
         while (tok.getToken().kind != TokenKind::ENDF)
         {
             m_locals.clear();
-            program.push_back(funcDecl());
+            if(isFunction())
+                funcDecl();
+            else
+                varDecl<IsGlobal>();
         }
-
-        return program;
+        return m_globals;
     }
 
 private:
-    Function *funcDecl()
+    void funcDecl()
     {
-        auto ret_tid = declSpec();
+        auto basety = declSpec();
 
         Token ident;
-        auto func_tid = declarator(ret_tid, ident);
+        auto func_tid = declarator(basety, ident);
 
         auto func_sign = m_sema.getTypeContext().getFuncSignature(func_tid);
 
@@ -40,18 +43,19 @@ private:
         func->name = ident.getContent();
 
         for (size_t i = 0; i < func_sign.param_types.size(); ++i)
-            func->params.push_back(newLvarWithName(func_sign.param_names[i], func_sign.param_types[i]));
+            func->params.push_back(newVar<IsLocal>(func_sign.param_names[i], func_sign.param_types[i]));
 
         tok.consumeToken("{");
         func->body   = compoundStmt();
         func->locals = m_locals;
 
-        return func;
+        m_globals.push_back(func);
     }
 
+    template <typename T>
     Node *varDecl()
     {
-        TypeId base_tid = declSpec();
+        TypeId basety = declSpec();
 
         auto node     = new BlockNode(tok.getToken());
         int var_count = 0;
@@ -63,24 +67,33 @@ private:
 
             Token ident;
 
-            TypeId final_tid = declarator(base_tid, ident);
+            TypeId final_tid = declarator(basety, ident);
 
             if (findVarByName(ident.getContent()))
                 DiagnosticEngine::errorOnTok(ident, "redefinition of variable '{}'", ident.getContent());
 
-            Object *var = newLvarWithName(ident.getContent(), final_tid);
+            auto var = newVar<T>(ident.getContent(), final_tid);
 
             if (tok.tryConsumeToken("="))
             {
-                auto lhs     = new VarNode{var, ident};
-                lhs->type_id = final_tid;
+                if constexpr (std::is_same_v<T, IsGlobal>)
+                {
+                    var->has_init = true;
+                    var->init_val = getNumber();
+                    tok.skipToken();
+                }
+                else
+                {
+                    auto lhs     = new VarNode{var, ident};
+                    lhs->type_id = final_tid;
 
-                auto rhs = assign();
+                    auto rhs = assign();
 
-                auto assign_node     = new BinaryNode(NodeKind::ASSIGN, lhs, rhs, ident);
-                assign_node->type_id = final_tid;
+                    auto assign_node     = new BinaryNode(NodeKind::ASSIGN, lhs, rhs, ident);
+                    assign_node->type_id = final_tid;
 
-                node->stmts.push_back(new ExprStmtNode(assign_node, ident));
+                    node->stmts.push_back(new ExprStmtNode(assign_node, ident));
+                }
             }
         }
 
@@ -92,7 +105,7 @@ private:
     Node *stmt()
     {
         if (tok.getToken().getContent() == "int")
-            return varDecl();
+            return varDecl<IsLocal>();
 
         if (tok.tryConsumeToken("return"))
         {
@@ -163,7 +176,7 @@ private:
         while (!tok.tryConsumeToken("}"))
         {
             if (tok.getToken().getContent() == "int")
-                node->stmts.push_back(varDecl());
+                node->stmts.push_back(varDecl<IsLocal>());
             else
                 node->stmts.push_back(stmt());
         }
@@ -412,7 +425,7 @@ private:
             if (tok.tryConsumeToken("("))
                 return funCall(token);
 
-            auto var = findVarByName(token.getContent());
+            auto var = static_cast<Variable *>(findVarByName(token.getContent()));
             if (!var)
                 DiagnosticEngine::errorOnTok(token, "undeclared identifier '{}'", token.getContent());
 
@@ -532,18 +545,48 @@ private:
         return value;
     }
 
-    Object *newLvarWithName(std::string_view name, TypeId tid)
+    bool isFunction()
     {
-        auto var     = new Object{};
-        var->name    = name;
-        var->type_id = tid;
-        m_locals.push_back(std::move(var));
-        return m_locals.back();
+        if (tok.isToken(";"))
+            return false;
+
+        RAIITokReverter rvt(tok);
+        auto basety = declSpec();
+        Token ident;
+        auto type_id = declarator(1, ident);
+        return m_sema.getTypeContext().getType(type_id).kind == TypeKind::FUNCTION;
     }
 
-    Object *findVarByName(std::string_view name)
+    template <typename T>
+    Variable *newVar(std::string_view name, TypeId tid)
+    {
+        if constexpr (std::is_same_v<T, IsGlobal>)
+        {
+            auto var      = new Variable{};
+            var->name     = name;
+            var->type_id  = tid;
+            m_globals.push_back(std::move(var));
+            return static_cast<Variable *>(m_globals.back());
+        }
+        else
+        {
+            auto var     = new Variable{};
+            var->name    = name;
+            var->type_id = tid;
+            var->is_local = true;
+            m_locals.push_back(std::move(var));
+            return static_cast<Variable *>(m_locals.back());
+        }
+    }
+
+    Symbol *findVarByName(std::string_view name)
     {
         for (auto var : m_locals)
+        {
+            if (var->name == name)
+                return var;
+        }
+        for (auto var : m_globals)
         {
             if (var->name == name)
                 return var;
@@ -554,5 +597,5 @@ private:
 private:
     TokenViewer tok;
     Sema &m_sema;
-    std::vector<Object *> m_locals;
+    std::vector<Symbol *> m_globals, m_locals;
 };

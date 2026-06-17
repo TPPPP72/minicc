@@ -1,6 +1,8 @@
 #pragma once
 
-#include <AST/Function.hpp>
+#include "Scope/Symbol.hpp"
+#include "Scope/Variable.hpp"
+#include <Scope/Function.hpp>
 #include <Codegen/Assembler.hpp>
 #include <Diag/Diag.hpp>
 #include <Sema/Sema.hpp>
@@ -11,38 +13,14 @@ class Codegen
 {
 public:
     Codegen(Sema &sema) : m_sema(sema) {}
-    void genProg(std::vector<Function *> &prog)
+    void genProg(std::vector<Symbol *> &symbols)
     {
-        for (auto func : prog)
-            genFunc(func);
+        assign_lvar_offsets(symbols);
+        emitData(symbols);
+        emitText(symbols);
     }
 
 private:
-    void genFunc(Function *func)
-    {
-        assign_lvar_offsets(func);
-
-        std::cout << "  .globl " << func->name << '\n';
-        Assembler::label(func->name);
-
-        Assembler::push("rbp");
-        Assembler::mov("rsp", "rbp");
-        Assembler::sub(func->stack_size, "rsp");
-
-        int i = 0;
-        for (auto var : func->params)
-            std::cout << "  mov %" << regs[i++] << ", " << var->offset <<"(%rbp)\n";
-
-        auto block_node = static_cast<BlockNode *>(func->body);
-        for (auto stmt : block_node->stmts)
-            genStmt(stmt, func->name);
-
-        Assembler::label(std::format(".L.return.{}", func->name));
-        Assembler::mov("rbp", "rsp");
-        Assembler::pop("rbp");
-        Assembler::ret();
-    }
-
     void genStmt(Node *node, std::string_view func_name)
     {
         switch (node->kind)
@@ -246,7 +224,10 @@ private:
         case NodeKind::VAR:
         {
             auto var_node = static_cast<VarNode *>(node);
-            Assembler::lea(var_node->var->offset, "rbp", "rax");
+            if (var_node->var->is_local)
+                Assembler::lea(var_node->var->offset, "rbp", "rax");
+            else
+                Assembler::lea(var_node->var->name, "rip", "rax");
             return;
         }
         case NodeKind::DEREF:
@@ -276,21 +257,72 @@ private:
         std::cout << "  mov %rax, (%rdi)\n";
     }
 
+    void emitData(const std::vector<Symbol *> &symbols){
+        for(auto sym : symbols){
+            if (auto var = dynamic_cast<Variable *>(sym))
+            {
+                std::cout << "  .data\n";
+                std::cout << "  .globl " << var->name << '\n';
+                std::cout << var->name << ":\n";
+                if (!var->has_init)
+                    std::cout << "  .zero  " << m_sema.getTypeContext().getType(var->type_id).size << '\n';
+                else
+                    std::cout << "  .quad " << var->init_val << '\n';
+            }
+        }
+    }
+
+    void emitText(const std::vector<Symbol *> &symbols)
+    {
+        for (auto sym : symbols)
+        {
+            if (auto func = dynamic_cast<Function *>(sym))
+            {
+                std::cout << "  .globl " << func->name << '\n';
+                std::cout << "  .text\n";
+                Assembler::label(func->name);
+
+                Assembler::push("rbp");
+                Assembler::mov("rsp", "rbp");
+                Assembler::sub(func->stack_size, "rsp");
+
+                int i = 0;
+                for (auto var : func->params)
+                    std::cout << "  mov %" << regs[i++] << ", " << static_cast<Variable *>(var)->offset << "(%rbp)\n";
+
+                auto block_node = static_cast<BlockNode *>(func->body);
+                for (auto stmt : block_node->stmts)
+                    genStmt(stmt, func->name);
+
+                Assembler::label(std::format(".L.return.{}", func->name));
+                Assembler::mov("rbp", "rsp");
+                Assembler::pop("rbp");
+                Assembler::ret();
+            }
+        }
+    }
+
     int align_to(int n, int align)
     {
         return (n + align - 1) / align * align;
     }
 
-    void assign_lvar_offsets(Function *func)
+    void assign_lvar_offsets(const std::vector<Symbol *> &symbols)
     {
-        int offset = 0;
-        for (auto it = func->locals.rbegin(); it != func->locals.rend(); ++it)
+        for (auto sym : symbols)
         {
-            auto var = *it;
-            offset += m_sema.getTypeContext().getType((*it)->type_id).size;
-            var->offset = -offset;
+            if (auto func = dynamic_cast<Function *>(sym))
+            {
+                int offset = 0;
+                for (auto it = func->locals.rbegin(); it != func->locals.rend(); ++it)
+                {
+                    auto var = static_cast<Variable *>(*it);
+                    offset += m_sema.getTypeContext().getType((*it)->type_id).size;
+                    var->offset = -offset;
+                }
+                func->stack_size = align_to(offset, 16);
+            }
         }
-        func->stack_size = align_to(offset, 16);
     }
 
 private:

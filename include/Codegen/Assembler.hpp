@@ -142,6 +142,11 @@ public:
         std::cout << "  lea " << offset << "(%" << src << ")" << ", %" << dst << '\n';
     }
 
+    static void lea(std::string_view name, std::string_view src, std::string_view dst)
+    {
+        std::cout << "  lea " << name << "(%" << src << ")" << ", %" << dst << '\n';
+    }
+
     static void je(std::string_view label){
         std::cout << "  je " << label << "\n";
     }

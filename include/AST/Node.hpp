@@ -2,7 +2,7 @@
 
 #include <AST/Type.hpp>
 #include <Lexer/Token.hpp>
-#include <Scope/Object.hpp>
+#include <Scope/Variable.hpp>
 #include <cstdint>
 #include <vector>
 
@@ -43,7 +43,7 @@ struct alignas(64) Node
     virtual ~Node() = default;
 };
 
-struct alignas(64) NumNode : public Node
+struct alignas(64) NumNode : Node
 {
     NumNode(std::int32_t v, const Token &t) : Node(NodeKind::NUM, t), val(v) {}
 
@@ -52,16 +52,16 @@ struct alignas(64) NumNode : public Node
     std::int32_t val;
 };
 
-struct alignas(64) VarNode : public Node
+struct alignas(64) VarNode : Node
 {
-    VarNode(Object *v, const Token &t) : Node(NodeKind::VAR, t), var(v) {}
+    VarNode(Variable *v, const Token &t) : Node(NodeKind::VAR, t), var(v) {}
 
-    VarNode(Object *v) : Node(NodeKind::VAR, {}), var(v) {}
+    VarNode(Variable *v) : Node(NodeKind::VAR, {}), var(v) {}
 
-    Object *var;
+    Variable *var;
 };
 
-struct alignas(128) UnaryNode : public Node
+struct alignas(128) UnaryNode : Node
 {
     UnaryNode(NodeKind k, Node *l, const Token &t) : Node(k, t), lhs(l) {}
 
@@ -75,7 +75,7 @@ struct alignas(128) UnaryNode : public Node
     Node *lhs;
 };
 
-struct alignas(128) BinaryNode : public Node
+struct alignas(128) BinaryNode : Node
 {
     BinaryNode(NodeKind k, Node *l, Node *r, const Token &t)
         : Node(k, t), lhs(l), rhs(r) {}
@@ -93,7 +93,7 @@ struct alignas(128) BinaryNode : public Node
     Node *rhs;
 };
 
-struct alignas(128) ExprStmtNode : public Node
+struct alignas(128) ExprStmtNode : Node
 {
     ExprStmtNode(Node *e, const Token &t)
         : Node(NodeKind::EXPR_STMT, t), expr(e) {}
@@ -106,7 +106,7 @@ struct alignas(128) ExprStmtNode : public Node
     Node *expr;
 };
 
-struct alignas(128) BlockNode : public Node
+struct alignas(128) BlockNode : Node
 {
     BlockNode(const Token &t) : Node(NodeKind::BLOCK, t) {}
 
@@ -119,7 +119,7 @@ struct alignas(128) BlockNode : public Node
     std::vector<Node *> stmts;
 };
 
-struct alignas(128) ReturnNode : public Node
+struct alignas(128) ReturnNode : Node
 {
     ReturnNode(Node *e, const Token &t)
         : Node(NodeKind::RETURN, t), expr(e) {}
@@ -132,7 +132,7 @@ struct alignas(128) ReturnNode : public Node
     Node *expr;
 };
 
-struct alignas(128) IfNode : public Node
+struct alignas(128) IfNode : Node
 {
     IfNode(const Token &t)
         : Node(NodeKind::IF, t), cond(nullptr), then(nullptr), els(nullptr) {}
@@ -150,7 +150,7 @@ struct alignas(128) IfNode : public Node
     Node *els;
 };
 
-struct alignas(128) ForNode : public Node
+struct alignas(128) ForNode : Node
 {
     ForNode(const Token &t)
         : Node(NodeKind::FOR, t), init(nullptr), cond(nullptr), inc(nullptr), then(nullptr) {}
@@ -172,7 +172,7 @@ struct alignas(128) ForNode : public Node
     Node *then;
 };
 
-struct FuncCallNode : public Node
+struct FuncCallNode : Node
 {
     FuncCallNode(std::string_view name, const Token &t)
         : Node(NodeKind::FUNCALL, t), func_name(name) {}

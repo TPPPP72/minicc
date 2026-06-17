@@ -67,6 +67,23 @@ public:
 private:
     const std::vector<Token> *m_tokens;
     std::uint32_t m_index{0};
+    friend class RAIITokReverter;
+};
+
+class RAIITokReverter
+{
+public:
+    RAIITokReverter(TokenViewer &tok) : m_tok(tok), m_index(tok.m_index)
+    {
+    }
+    ~RAIITokReverter()
+    {
+        m_tok.m_index = m_index;
+    }
+
+private:
+    TokenViewer &m_tok;
+    std::uint32_t m_index;
 };
 
 class Lexer
