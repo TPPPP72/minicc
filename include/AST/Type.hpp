@@ -8,6 +8,7 @@ enum class TypeKind : std::uint32_t
 {
     NULLTYPE,
     INT,
+    CHAR,
     PTR,
     FUNCTION,
     ARRAY

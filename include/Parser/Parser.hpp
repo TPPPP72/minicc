@@ -1,7 +1,5 @@
 #pragma once
 
-#include "AST/Type.hpp"
-#include "Scope/Symbol.hpp"
 #include <Scope/Variable.hpp>
 #include <Diag/Diag.hpp>
 #include <Lexer/Lexer.hpp>
@@ -104,7 +102,7 @@ private:
 private:
     Node *stmt()
     {
-        if (tok.getToken().getContent() == "int")
+        if (isTypename())
             return varDecl<IsLocal>();
 
         if (tok.tryConsumeToken("return"))
@@ -381,7 +379,7 @@ private:
         {
             auto op_tok       = tok.prev();
             auto node         = unary();
-            auto size         = m_sema.getTypeContext().getType(node->type_id).size;
+            auto size         = m_sema.getTypeSize(node->type_id);
             auto num_node     = new NumNode(size, op_tok);
             num_node->type_id = m_sema.getTypeContext().getIntTypeId();
             return num_node;
@@ -450,6 +448,9 @@ private:
     {
         if (tok.tryConsumeToken("int"))
             return m_sema.getTypeContext().getIntTypeId();
+
+        if(tok.tryConsumeToken("char"))
+            return m_sema.getTypeContext().getCharTypeId();
 
         DiagnosticEngine::errorOnTok(tok.getToken(), "expected a type specifier");
     }
@@ -543,6 +544,11 @@ private:
         auto content = tok.getToken().getContent();
         std::from_chars(content.begin(), content.end(), value);
         return value;
+    }
+
+    bool isTypename(){
+        auto token = tok.getToken().getContent();
+        return (token == "int" || token == "char");
     }
 
     bool isFunction()

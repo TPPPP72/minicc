@@ -1,7 +1,6 @@
 #pragma once
 
-#include "Scope/Symbol.hpp"
-#include "Scope/Variable.hpp"
+#include <Scope/Variable.hpp>
 #include <Scope/Function.hpp>
 #include <Codegen/Assembler.hpp>
 #include <Diag/Diag.hpp>
@@ -129,7 +128,7 @@ private:
             genAddr(binary_node->lhs);
             Assembler::push("rax");
             genExpr(binary_node->rhs);
-            store();
+            store(node);
             return;
         }
         case NodeKind::FUNCALL:
@@ -142,7 +141,7 @@ private:
             }
 
             for (auto i = func_node->args.size(); i > 0; --i)
-                Assembler::pop(regs[i - 1]);
+                Assembler::pop(argreg64[i - 1]);
 
             Assembler::mov(0, "rax");
             Assembler::call(func_node->func_name);
@@ -244,17 +243,27 @@ private:
     }
 
 private:
-    void load(Node *node){
-        auto kind = m_sema.getTypeContext().getType(node->type_id).kind;
-        if(kind == TypeKind::ARRAY)
+    void load(Node *node)
+    {
+        auto type = m_sema.getTypeContext().getType(node->type_id);
+        if (type.kind == TypeKind::ARRAY)
             return;
 
-        std::cout << "  mov (%rax), %rax\n";
+        if (type.size == 1)
+            std::cout << "  movsbq (%rax), %rax\n";
+        else
+            std::cout << "  mov (%rax), %rax\n";
     }
 
-    void store(){
+    void store(Node *node)
+    {
+        auto type = m_sema.getTypeContext().getType(node->type_id);
         Assembler::pop("rdi");
-        std::cout << "  mov %rax, (%rdi)\n";
+
+        if (type.size == 1)
+            std::cout << "  mov %al, (%rdi)\n";
+        else
+            std::cout << "  mov %rax, (%rdi)\n";
     }
 
     void emitData(const std::vector<Symbol *> &symbols){
@@ -265,7 +274,7 @@ private:
                 std::cout << "  .globl " << var->name << '\n';
                 std::cout << var->name << ":\n";
                 if (!var->has_init)
-                    std::cout << "  .zero  " << m_sema.getTypeContext().getType(var->type_id).size << '\n';
+                    std::cout << "  .zero  " << m_sema.getTypeSize(var->type_id) << '\n';
                 else
                     std::cout << "  .quad " << var->init_val << '\n';
             }
@@ -288,7 +297,12 @@ private:
 
                 int i = 0;
                 for (auto var : func->params)
-                    std::cout << "  mov %" << regs[i++] << ", " << static_cast<Variable *>(var)->offset << "(%rbp)\n";
+                {
+                    if (m_sema.getTypeSize(var->type_id) == 1)
+                        std::cout << "  mov %" << argreg8[i++] << ", " << static_cast<Variable *>(var)->offset << "(%rbp)\n";
+                    else
+                        std::cout << "  mov %" << argreg64[i++] << ", " << static_cast<Variable *>(var)->offset << "(%rbp)\n";
+                }
 
                 auto block_node = static_cast<BlockNode *>(func->body);
                 for (auto stmt : block_node->stmts)
@@ -317,7 +331,7 @@ private:
                 for (auto it = func->locals.rbegin(); it != func->locals.rend(); ++it)
                 {
                     auto var = static_cast<Variable *>(*it);
-                    offset += m_sema.getTypeContext().getType((*it)->type_id).size;
+                    offset += m_sema.getTypeSize((*it)->type_id);
                     var->offset = -offset;
                 }
                 func->stack_size = align_to(offset, 16);
@@ -326,7 +340,8 @@ private:
     }
 
 private:
-    std::array<std::string_view, 6> regs{"rdi"sv, "rsi"sv, "rdx"sv, "rcx"sv, "r8"sv, "r9"sv};
+    std::array<std::string_view, 6> argreg8{"dil"sv, "sil"sv, "dl"sv, "cl"sv, "r8b"sv, "r9b"sv};
+    std::array<std::string_view, 6> argreg64{"rdi"sv, "rsi"sv, "rdx"sv, "rcx"sv, "r8"sv, "r9"sv};
     Sema &m_sema;
     int count{};
 };

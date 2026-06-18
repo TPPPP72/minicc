@@ -26,7 +26,7 @@ public:
         Type l = m_ty_ctx.getType(lhs_tid);
         Type r = m_ty_ctx.getType(rhs_tid);
 
-        if (l.kind == TypeKind::INT && r.kind == TypeKind::INT)
+        if (isInteger(l.kind) && isInteger(r.kind))
         {
             Node *node    = new BinaryNode{NodeKind::ADD, lhs, rhs, tok};
             node->type_id = m_ty_ctx.getIntTypeId();
@@ -60,7 +60,7 @@ public:
         Type l = m_ty_ctx.getType(lhs_tid);
         Type r = m_ty_ctx.getType(rhs_tid);
 
-        if (l.kind == TypeKind::INT && r.kind == TypeKind::INT)
+        if (isInteger(l.kind) && isInteger(r.kind))
         {
             auto result     = new BinaryNode(NodeKind::SUB, lhs, rhs, tok);
             result->type_id = m_ty_ctx.getIntTypeId();
@@ -114,6 +114,11 @@ public:
         return node;
     }
 
+public:
+    std::uint32_t getTypeSize(TypeId tid){
+        return m_ty_ctx.getType(tid).size;
+    }
+
 private:
     TypeId arrayDecay(TypeId tid)
     {
@@ -123,6 +128,10 @@ private:
             return m_ty_ctx.getPointerTypeId(type.base_type_id);
 
         return tid;
+    }
+
+    bool isInteger(TypeKind kind){
+        return kind == TypeKind::INT || kind == TypeKind::CHAR;
     }
 
 private:

@@ -11,9 +11,12 @@ public:
     {
         m_types.emplace_back(TypeKind::NULLTYPE, 0, 0);
         m_types.emplace_back(TypeKind::INT, 0, 8);
+        m_types.emplace_back(TypeKind::CHAR, 0, 1);
     }
 
-    TypeId getIntTypeId() const { return 1; }
+    TypeId getIntTypeId() const noexcept { return 1; }
+
+    TypeId getCharTypeId() const noexcept { return 2; }
 
     TypeId getPointerTypeId(TypeId base_id)
     {
