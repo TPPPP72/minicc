@@ -272,11 +272,23 @@ private:
             {
                 std::cout << "  .data\n";
                 std::cout << "  .globl " << var->name << '\n';
-                std::cout << var->name << ":\n";
-                if (!var->has_init)
-                    std::cout << "  .zero  " << m_sema.getTypeSize(var->type_id) << '\n';
+                Assembler::label(var->name);
+                if (var->is_string_literal)
+                {
+                    std::cout << "  .string \"" << var->string_data.c_str() << "\"\n";
+                }
+                else if (var->has_int_init)
+                {
+                    auto size = m_sema.getTypeSize(var->type_id);
+                    if (size == 8)
+                        std::cout << "  .quad " << var->int_init_val << '\n';
+                    else
+                        std::cout << "  .long " << var->int_init_val << '\n';
+                }
                 else
-                    std::cout << "  .quad " << var->init_val << '\n';
+                {
+                    std::cout << "  .zero  " << m_sema.getTypeSize(var->type_id) << '\n';
+                }
             }
         }
     }

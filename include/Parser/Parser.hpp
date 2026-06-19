@@ -76,8 +76,8 @@ private:
             {
                 if constexpr (std::is_same_v<T, IsGlobal>)
                 {
-                    var->has_init = true;
-                    var->init_val = getNumber();
+                    var->has_int_init = true;
+                    var->int_init_val = getNumber();
                     tok.skipToken();
                 }
                 else
@@ -432,6 +432,21 @@ private:
             return node;
         }
 
+        if (token.kind == TokenKind::STR)
+        {
+            auto& ty_context    = m_sema.getTypeContext();
+            auto str_array_tid = ty_context.getArrayTypeId(ty_context.getCharTypeId(), token.len + 1);
+
+            auto var               = newAnonGvar(str_array_tid);
+            var->is_string_literal = true;
+            var->string_data       = token.getContent();
+            tok.skipToken();
+
+            auto node     = new VarNode{var, token};
+            node->type_id = str_array_tid;
+            return node;
+        }
+
         if (token.kind == TokenKind::NUM)
         {
             auto node = new NumNode{getNumber(), tok.getToken()};
@@ -600,8 +615,19 @@ private:
         return nullptr;
     }
 
+    std::string newUniqueName() {
+        static int id = 0;
+        return ".L.." + std::to_string(id++);
+    }
+
+    Variable* newAnonGvar(TypeId tid) {
+        m_anon_pool.emplace_back(newUniqueName());
+        return newVar<IsGlobal>(m_anon_pool.back(), tid);
+    }
+
 private:
     TokenViewer tok;
     Sema &m_sema;
     std::vector<Symbol *> m_globals, m_locals;
+    std::vector<std::string> m_anon_pool;
 };

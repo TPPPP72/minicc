@@ -10,6 +10,7 @@ enum class TokenKind
     IDENT,
     PUNCT,
     NUM,
+    STR,
     OPERATOR,
     ASSIGN,
     ENDF

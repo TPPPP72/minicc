@@ -115,6 +115,23 @@ public:
                 continue;
             }
 
+            if (source[offset] == '\"')
+            {
+                std::uint32_t len{1};
+                while (offset + len < maxlen && source[offset + len] != '\"')
+                {
+                    if (source[offset + len] == '\0' || source[offset + len] == '\n')
+                    {
+                        tokens.emplace_back(source, TokenKind::STR, offset, len - 1);
+                        DiagnosticEngine::errorOnTok(tokens.back(), "unclosed string literial");
+                    }
+                    ++len;
+                }
+                tokens.emplace_back(source, TokenKind::STR, offset + 1, len - 1);
+                offset += (len + 1);
+                continue;
+            }
+
             if (isIdentifier1(source[offset]))
             {
                 std::uint32_t len{1};
