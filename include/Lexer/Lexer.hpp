@@ -92,7 +92,8 @@ class Lexer
 {
 public:
     Lexer() { tokens.reserve(4096); }
-    TokenViewer tokenizeFile(char *path)
+    
+    TokenViewer tokenizeFile(const char *path)
     {
         std::ifstream ifs(path, std::ios::in);
         if (!ifs.is_open())

@@ -12,11 +12,14 @@ class Codegen
 {
 public:
     Codegen(Sema &sema) : m_sema(sema) {}
-    void genProg(std::vector<Symbol *> &symbols)
+
+    void genProg(std::vector<Symbol *> &symbols, std::string_view path)
     {
+        Assembler::initialize(path);
         assign_lvar_offsets(symbols);
         emitData(symbols);
         emitText(symbols);
+        Assembler::close();
     }
 
 private:
@@ -49,7 +52,7 @@ private:
             auto if_node = static_cast<IfNode *>(node);
             int temp     = ++count;
             genExpr(if_node->cond);
-            Assembler::cmp(0, "rax");
+            Assembler::cmp(Imm{0}, Reg{"rax"});
             Assembler::je(std::format(".L.else.{}", temp));
             genStmt(if_node->then, func_name);
             Assembler::jmp(std::format(".L.end.{}", temp));
@@ -69,7 +72,7 @@ private:
             if (for_node->cond)
             {
                 genExpr(for_node->cond);
-                Assembler::cmp(0, "rax");
+                Assembler::cmp(Imm{0}, Reg{"rax"});
                 Assembler::je(std::format(".L.end.{}", temp));
             }
             genStmt(for_node->then, func_name);
@@ -93,14 +96,14 @@ private:
         case NodeKind::NUM:
         {
             auto num_node = static_cast<NumNode *>(node);
-            Assembler::mov(num_node->val, "rax");
+            Assembler::mov(Imm{num_node->val}, Reg{"rax"});
             return;
         }
         case NodeKind::NEG:
         {
             auto unary_node = static_cast<UnaryNode *>(node);
             genExpr(unary_node->lhs);
-            Assembler::neg("rax");
+            Assembler::neg(Reg{"rax"});
             return;
         }
         case NodeKind::VAR:
@@ -126,7 +129,7 @@ private:
         {
             auto binary_node = static_cast<BinaryNode *>(node);
             genAddr(binary_node->lhs);
-            Assembler::push("rax");
+            Assembler::push(Reg{"rax"});
             genExpr(binary_node->rhs);
             store(node);
             return;
@@ -137,13 +140,13 @@ private:
             for (auto arg : func_node->args)
             {
                 genExpr(arg);
-                Assembler::push("rax");
+                Assembler::push(Reg{"rax"});
             }
 
             for (auto i = func_node->args.size(); i > 0; --i)
-                Assembler::pop(argreg64[i - 1]);
+                Assembler::pop(Reg{argreg64[i - 1]});
 
-            Assembler::mov(0, "rax");
+            Assembler::mov(Imm{0}, Reg{"rax"});
             Assembler::call(func_node->func_name);
             return;
         }
@@ -153,27 +156,27 @@ private:
 
         auto binary_node = static_cast<BinaryNode *>(node);
         genExpr(binary_node->rhs);
-        Assembler::push("rax");
+        Assembler::push(Reg{"rax"});
         genExpr(binary_node->lhs);
-        Assembler::pop("rdi");
+        Assembler::pop(Reg{"rdi"});
 
         switch (binary_node->kind)
         {
         case NodeKind::ADD:
-            Assembler::add("rdi", "rax");
+            Assembler::add(Reg{"rdi"}, Reg{"rax"});
             return;
         case NodeKind::SUB:
-            Assembler::sub("rdi", "rax");
+            Assembler::sub(Reg{"rdi"}, Reg{"rax"});
             return;
         case NodeKind::MUL:
-            Assembler::imul("rdi", "rax");
+            Assembler::imul(Reg{"rdi"}, Reg{"rax"});
             return;
         case NodeKind::DIV:
-            Assembler::idiv("rdi", "rax");
+            Assembler::idiv(Reg{"rdi"});
             return;
         case NodeKind::MOD:
-            Assembler::idiv("rdi", "rax");
-            Assembler::mov("rdx", "rax");
+            Assembler::idiv(Reg{"rdi"});
+            Assembler::mov(Reg{"rdx"}, Reg{"rax"});
             return;
         case NodeKind::EQ:
         case NodeKind::NE:
@@ -181,33 +184,32 @@ private:
         case NodeKind::LT:
         case NodeKind::GE:
         case NodeKind::GT:
-            Assembler::cmp("rdi", "rax");
+            Assembler::cmp(Reg{"rdi"}, Reg{"rax"});
             switch (binary_node->kind)
             {
             case NodeKind::EQ:
-                Assembler::sete("al");
+                Assembler::sete(Reg{"al"});
                 break;
             case NodeKind::NE:
-                Assembler::setne("al");
+                Assembler::setne(Reg{"al"});
                 break;
             case NodeKind::LE:
-                Assembler::setle("al");
+                Assembler::setle(Reg{"al"});
                 break;
             case NodeKind::LT:
-                Assembler::setl("al");
+                Assembler::setl(Reg{"al"});
                 break;
             case NodeKind::GE:
-                Assembler::setge("al");
+                Assembler::setge(Reg{"al"});
                 break;
             case NodeKind::GT:
-                Assembler::setg("al");
+                Assembler::setg(Reg{"al"});
                 break;
             default:
                 break;
             }
-            Assembler::movzb("al", "rax");
+            Assembler::movzb(Reg{"al"}, Reg{"rax"});
             return;
-
         default:
             break;
         }
@@ -224,9 +226,9 @@ private:
         {
             auto var_node = static_cast<VarNode *>(node);
             if (var_node->var->is_local)
-                Assembler::lea(var_node->var->offset, "rbp", "rax");
+                Assembler::lea(Mem{"rbp", var_node->var->offset}, Reg{"rax"});
             else
-                Assembler::lea(var_node->var->name, "rip", "rax");
+                Assembler::lea(Mem{"rip", var_node->var->name}, Reg{"rax"});
             return;
         }
         case NodeKind::DEREF:
@@ -250,44 +252,44 @@ private:
             return;
 
         if (type.size == 1)
-            std::cout << "  movsbq (%rax), %rax\n";
+            Assembler::movsbq(Mem{"rax"}, Reg{"rax"});
         else
-            std::cout << "  mov (%rax), %rax\n";
+            Assembler::mov(Mem{"rax"}, Reg{"rax"});
     }
 
     void store(Node *node)
     {
         auto type = m_sema.getTypeContext().getType(node->type_id);
-        Assembler::pop("rdi");
+        Assembler::pop(Reg{"rdi"});
 
         if (type.size == 1)
-            std::cout << "  mov %al, (%rdi)\n";
+            Assembler::mov(Reg{"al"}, Mem{"rdi"});
         else
-            std::cout << "  mov %rax, (%rdi)\n";
+            Assembler::mov(Reg{"rax"}, Mem{"rdi"});
     }
 
     void emitData(const std::vector<Symbol *> &symbols){
         for(auto sym : symbols){
             if (auto var = dynamic_cast<Variable *>(sym))
             {
-                std::cout << "  .data\n";
-                std::cout << "  .globl " << var->name << '\n';
+                Assembler::directive("data");
+                Assembler::globl(var->name);
                 Assembler::label(var->name);
                 if (var->is_string_literal)
                 {
-                    std::cout << "  .string \"" << escapeToAssembly(var->string_data).c_str() << "\"\n";
+                    Assembler::string_lit(escapeToAssembly(var->string_data));
                 }
                 else if (var->has_int_init)
                 {
                     auto size = m_sema.getTypeSize(var->type_id);
                     if (size == 8)
-                        std::cout << "  .quad " << var->int_init_val << '\n';
+                        Assembler::quad(var->int_init_val);
                     else
-                        std::cout << "  .long " << var->int_init_val << '\n';
+                        Assembler::long_val(var->int_init_val);
                 }
                 else
                 {
-                    std::cout << "  .zero  " << m_sema.getTypeSize(var->type_id) << '\n';
+                    Assembler::zero(m_sema.getTypeSize(var->type_id));
                 }
             }
         }
@@ -299,21 +301,21 @@ private:
         {
             if (auto func = dynamic_cast<Function *>(sym))
             {
-                std::cout << "  .globl " << func->name << '\n';
-                std::cout << "  .text\n";
+                Assembler::globl(func->name);
+                Assembler::directive("text");
                 Assembler::label(func->name);
 
-                Assembler::push("rbp");
-                Assembler::mov("rsp", "rbp");
-                Assembler::sub(func->stack_size, "rsp");
+                Assembler::push(Reg{"rbp"});
+                Assembler::mov(Reg{"rsp"}, Reg{"rbp"});
+                Assembler::sub(Imm{func->stack_size}, Reg{"rsp"});
 
                 int i = 0;
                 for (auto var : func->params)
                 {
                     if (m_sema.getTypeSize(var->type_id) == 1)
-                        std::cout << "  mov %" << argreg8[i++] << ", " << static_cast<Variable *>(var)->offset << "(%rbp)\n";
+                        Assembler::mov(Reg{argreg8[i++],}, Mem{"rbp", static_cast<Variable *>(var)->offset});
                     else
-                        std::cout << "  mov %" << argreg64[i++] << ", " << static_cast<Variable *>(var)->offset << "(%rbp)\n";
+                        Assembler::mov(Reg{argreg64[i++]}, Mem{"rbp", static_cast<Variable *>(var)->offset});
                 }
 
                 auto block_node = static_cast<BlockNode *>(func->body);
@@ -321,8 +323,8 @@ private:
                     genStmt(stmt, func->name);
 
                 Assembler::label(std::format(".L.return.{}", func->name));
-                Assembler::mov("rbp", "rsp");
-                Assembler::pop("rbp");
+                Assembler::mov(Reg{"rbp"}, Reg{"rsp"});
+                Assembler::pop(Reg{"rbp"});
                 Assembler::ret();
             }
         }
