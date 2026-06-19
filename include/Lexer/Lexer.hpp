@@ -105,6 +105,7 @@ public:
                 continue;
             }
 
+            // numbers
             if (std::isdigit(source[offset]))
             {
                 std::uint32_t len{1};
@@ -115,6 +116,7 @@ public:
                 continue;
             }
 
+            // escape
             if (source[offset] == '\"')
             {
                 std::uint32_t len{1};
@@ -143,6 +145,26 @@ public:
                 continue;
             }
 
+            // line comments
+            if(source.substr(offset,2) == "//"){
+                std::uint32_t len{1};
+                while(offset + len < maxlen && source[offset + len] != '\n')
+                    ++len;
+                offset += len + 1;
+                continue;
+            }
+
+            // block comments
+            if (source.substr(offset, 2) == "/*")
+            {
+                std::uint32_t len{1};
+                while (offset + len < maxlen && source.substr(offset + len, 2) != "*/")
+                    ++len;
+                offset += len + 2;
+                continue;
+            }
+
+            // identifier
             if (isIdentifier1(source[offset]))
             {
                 std::uint32_t len{1};
@@ -157,7 +179,7 @@ public:
                 offset += len;
                 continue;
             }
-
+            
             if (offset + 2 < maxlen && isTwoCharOperator(source.substr(offset, 2)))
             {
                 tokens.emplace_back(source, TokenKind::OPERATOR, offset, 2);
