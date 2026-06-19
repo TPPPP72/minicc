@@ -118,16 +118,25 @@ public:
             if (source[offset] == '\"')
             {
                 std::uint32_t len{1};
+                std::string buf;
                 while (offset + len < maxlen && source[offset + len] != '\"')
                 {
-                    if (source[offset + len] == '\0' || source[offset + len] == '\n')
+                    char ch = source[offset + len];
+                    if (ch == '\0' || ch == '\n')
                     {
                         tokens.emplace_back(source, TokenKind::STR, offset, len - 1);
                         DiagnosticEngine::errorOnTok(tokens.back(), "unclosed string literial");
                     }
+                    if (ch == '\\')
+                    {
+                        ++len;
+                        ch = readEscapedChar(source[offset + len]);
+                    }
+                    buf += ch;
                     ++len;
                 }
-                tokens.emplace_back(source, TokenKind::STR, offset + 1, len - 1);
+                tokens.emplace_back(source, TokenKind::STR, offset, len + 1);
+                tokens.back().string_val = buf;
                 offset += (len + 1);
                 continue;
             }
@@ -173,6 +182,31 @@ public:
 
         tokens.emplace_back(source, TokenKind::ENDF, offset, 0);
         return TokenViewer(tokens);
+    }
+
+private:
+    uint8_t readEscapedChar(char ch){
+        switch (ch)
+        {
+        case 'a':
+            return '\a';
+        case 'b':
+            return '\b';
+        case 't':
+            return '\t';
+        case 'n':
+            return '\n';
+        case 'v':
+            return '\v';
+        case 'f':
+            return '\f';
+        case 'r':
+            return '\r';
+        case 'e':
+            return 27;
+        default:
+            return ch;
+        }
     }
 
 private:

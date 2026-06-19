@@ -275,7 +275,7 @@ private:
                 Assembler::label(var->name);
                 if (var->is_string_literal)
                 {
-                    std::cout << "  .string \"" << var->string_data.c_str() << "\"\n";
+                    std::cout << "  .string \"" << escapeToAssembly(var->string_data).c_str() << "\"\n";
                 }
                 else if (var->has_int_init)
                 {
@@ -349,6 +349,62 @@ private:
                 func->stack_size = align_to(offset, 16);
             }
         }
+    }
+
+    std::string escapeToAssembly(const std::string &src)
+    {
+        std::string dst;
+        for (char c : src)
+        {
+            switch (c)
+            {
+            case '\n':
+                dst += "\\n";
+                break;
+            case '\t':
+                dst += "\\t";
+                break;
+            case '\r':
+                dst += "\\r";
+                break;
+            case '\b':
+                dst += "\\b";
+                break;
+            case '"':
+                dst += "\\\"";
+                break;
+            case '\\':
+                dst += "\\\\";
+                break;
+
+            case '\a':
+                dst += "\\007";
+                break;
+            case '\v':
+                dst += "\\013";
+                break;
+            case '\f':
+                dst += "\\014";
+                break;
+            case '\e':
+                dst += "\\033";
+                break;
+
+            default:
+                if (c < 32)
+                {
+                    char buf[8];
+                    snprintf(buf, sizeof(buf), "\\%03o", static_cast<unsigned char>(c));
+                    dst += buf;
+                }
+                else
+                {
+                    dst += c;
+                }
+                break;
+            }
+        }
+        return dst;
     }
 
 private:

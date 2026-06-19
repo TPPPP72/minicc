@@ -435,11 +435,11 @@ private:
         if (token.kind == TokenKind::STR)
         {
             auto& ty_context    = m_sema.getTypeContext();
-            auto str_array_tid = ty_context.getArrayTypeId(ty_context.getCharTypeId(), token.len + 1);
+            auto str_array_tid = ty_context.getArrayTypeId(ty_context.getCharTypeId(), token.string_val.length() + 1);
 
             auto var               = newAnonGvar(str_array_tid);
             var->is_string_literal = true;
-            var->string_data       = token.getContent();
+            var->string_data       = token.string_val;
             tok.skipToken();
 
             auto node     = new VarNode{var, token};
