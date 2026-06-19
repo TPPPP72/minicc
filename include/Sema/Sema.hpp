@@ -3,11 +3,14 @@
 #include <AST/Node.hpp>
 #include <AST/Type.hpp>
 #include <Diag/Diag.hpp>
+#include <Infra/Arena.hpp>
 #include <Sema/TypeContext.hpp>
 
 class Sema
 {
 public:
+    Sema(Arena &arena) : m_arena(arena) {}
+
     const TypeContext &getTypeContext() const
     {
         return m_ty_ctx;
@@ -28,7 +31,7 @@ public:
 
         if (isInteger(l.kind) && isInteger(r.kind))
         {
-            Node *node    = new BinaryNode{NodeKind::ADD, lhs, rhs, tok};
+            Node *node    = m_arena.alloc<BinaryNode>(NodeKind::ADD, lhs, rhs, tok);
             node->type_id = m_ty_ctx.getIntTypeId();
             return node;
         }
@@ -43,11 +46,11 @@ public:
             std::swap(lhs_tid, rhs_tid);
         }
 
-        auto scale      = new NumNode(m_ty_ctx.getType(l.base_type_id).size);
+        auto scale      = m_arena.alloc<NumNode>(m_ty_ctx.getType(l.base_type_id).size);
         scale->type_id  = m_ty_ctx.getIntTypeId();
-        auto factor     = new BinaryNode{NodeKind::MUL, rhs, scale};
+        auto factor     = m_arena.alloc<BinaryNode>(NodeKind::MUL, rhs, scale);
         factor->type_id = m_ty_ctx.getIntTypeId();
-        auto node       = new BinaryNode{NodeKind::ADD, lhs, factor, tok};
+        auto node       = m_arena.alloc<BinaryNode>(NodeKind::ADD, lhs, factor, tok);
         node->type_id   = lhs->type_id;
         return node;
     }
@@ -62,18 +65,18 @@ public:
 
         if (isInteger(l.kind) && isInteger(r.kind))
         {
-            auto result     = new BinaryNode(NodeKind::SUB, lhs, rhs, tok);
+            auto result     = m_arena.alloc<BinaryNode>(NodeKind::SUB, lhs, rhs, tok);
             result->type_id = m_ty_ctx.getIntTypeId();
             return result;
         }
 
         if (l.kind == TypeKind::PTR && r.kind == TypeKind::PTR)
         {
-            auto node         = new BinaryNode{NodeKind::SUB, lhs, rhs, tok};
+            auto node         = m_arena.alloc<BinaryNode>(NodeKind::SUB, lhs, rhs, tok);
             node->type_id     = m_ty_ctx.getIntTypeId();
-            auto scale        = new NumNode(m_ty_ctx.getType(l.base_type_id).size);
+            auto scale        = m_arena.alloc<NumNode>(m_ty_ctx.getType(l.base_type_id).size);
             scale->type_id    = m_ty_ctx.getIntTypeId();
-            auto div_node     = new BinaryNode{NodeKind::DIV, node, scale};
+            auto div_node     = m_arena.alloc<BinaryNode>(NodeKind::DIV, node, scale);
             div_node->type_id = m_ty_ctx.getIntTypeId();
             return div_node;
         }
@@ -81,11 +84,11 @@ public:
         if (l.kind == TypeKind::INT && r.kind == TypeKind::PTR)
             DiagnosticEngine::errorOnTok(tok, "invalid operands");
 
-        auto scale      = new NumNode(m_ty_ctx.getType(l.base_type_id).size);
+        auto scale      = m_arena.alloc<NumNode>(m_ty_ctx.getType(l.base_type_id).size);
         scale->type_id  = m_ty_ctx.getIntTypeId();
-        auto factor     = new BinaryNode{NodeKind::MUL, rhs, scale};
+        auto factor     = m_arena.alloc<BinaryNode>(NodeKind::MUL, rhs, scale);
         factor->type_id = m_ty_ctx.getIntTypeId();
-        auto node       = new BinaryNode{NodeKind::SUB, lhs, factor, tok};
+        auto node       = m_arena.alloc<BinaryNode>(NodeKind::SUB, lhs, factor, tok);
         node->type_id   = lhs->type_id;
         return node;
     }
@@ -94,7 +97,7 @@ public:
     {
         Type l = m_ty_ctx.getType(lhs->type_id);
 
-        auto node = new UnaryNode{NodeKind::ADDR, lhs, tok};
+        auto node = m_arena.alloc<UnaryNode>(NodeKind::ADDR, lhs, tok);
         if (l.kind == TypeKind::ARRAY)
             node->type_id = m_ty_ctx.getPointerTypeId(l.base_type_id);
         else
@@ -109,13 +112,14 @@ public:
         if (l.base_type_id == 0)
             DiagnosticEngine::errorOnTok(tok, "invalid operands");
 
-        auto node     = new UnaryNode{NodeKind::DEREF, lhs, tok};
+        auto node     = m_arena.alloc<UnaryNode>(NodeKind::DEREF, lhs, tok);
         node->type_id = m_ty_ctx.getType(lhs->type_id).base_type_id;
         return node;
     }
 
 public:
-    std::uint32_t getTypeSize(TypeId tid){
+    std::uint32_t getTypeSize(TypeId tid)
+    {
         return m_ty_ctx.getType(tid).size;
     }
 
@@ -130,10 +134,12 @@ private:
         return tid;
     }
 
-    bool isInteger(TypeKind kind){
+    bool isInteger(TypeKind kind)
+    {
         return kind == TypeKind::INT || kind == TypeKind::CHAR;
     }
 
 private:
     TypeContext m_ty_ctx;
+    Arena &m_arena;
 };

@@ -1,25 +1,24 @@
 #pragma once
 
-#include <Scope/Variable.hpp>
 #include <Diag/Diag.hpp>
 #include <Lexer/Lexer.hpp>
 #include <Scope/Function.hpp>
+#include <Scope/Variable.hpp>
 #include <Sema/Sema.hpp>
-#include <charconv>
 #include <Util/Tags.hpp>
-
-/// TODO: Here we need a Arena Allocator
+#include <charconv>
 
 class Parser
 {
 public:
-    Parser(TokenViewer token_viewer, Sema &sema) : tok(token_viewer), m_sema(sema) {}
+    Parser(TokenViewer token_viewer, Sema &sema, Arena &arena) : tok(token_viewer), m_sema(sema), m_arena(arena) {}
+
     std::vector<Symbol *> parseProgram()
     {
         while (tok.getToken().kind != TokenKind::ENDF)
         {
             m_locals.clear();
-            if(isFunction())
+            if (isFunction())
                 funcDecl();
             else
                 varDecl<IsGlobal>();
@@ -37,7 +36,7 @@ private:
 
         auto func_sign = m_sema.getTypeContext().getFuncSignature(func_tid);
 
-        auto func  = new Function{};
+        auto func  = m_arena.alloc<Function>();
         func->name = ident.getContent();
 
         for (size_t i = 0; i < func_sign.param_types.size(); ++i)
@@ -55,7 +54,7 @@ private:
     {
         TypeId basety = declSpec();
 
-        auto node     = new BlockNode(tok.getToken());
+        auto node     = m_arena.alloc<BlockNode>(tok.getToken());
         int var_count = 0;
 
         while (!tok.tryConsumeToken(";"))
@@ -82,15 +81,15 @@ private:
                 }
                 else
                 {
-                    auto lhs     = new VarNode{var, ident};
+                    auto lhs     = m_arena.alloc<VarNode>(var, ident);
                     lhs->type_id = final_tid;
 
                     auto rhs = assign();
 
-                    auto assign_node     = new BinaryNode(NodeKind::ASSIGN, lhs, rhs, ident);
+                    auto assign_node     = m_arena.alloc<BinaryNode>(NodeKind::ASSIGN, lhs, rhs, ident);
                     assign_node->type_id = final_tid;
 
-                    node->stmts.push_back(new ExprStmtNode(assign_node, ident));
+                    node->stmts.push_back(m_arena.alloc<ExprStmtNode>(assign_node, ident));
                 }
             }
         }
@@ -108,7 +107,7 @@ private:
         if (tok.tryConsumeToken("return"))
         {
             auto kw_tok = tok.prev();
-            auto node   = new ReturnNode(expr(), kw_tok);
+            auto node   = m_arena.alloc<ReturnNode>(expr(), kw_tok);
             node->tok   = kw_tok;
             tok.consumeToken(";");
             return node;
@@ -117,7 +116,7 @@ private:
         if (tok.tryConsumeToken("if"))
         {
             auto kw_tok = tok.prev();
-            auto node   = new IfNode(kw_tok);
+            auto node   = m_arena.alloc<IfNode>(kw_tok);
             node->tok   = kw_tok;
             tok.consumeToken("(");
             node->cond = expr();
@@ -131,7 +130,7 @@ private:
         if (tok.tryConsumeToken("for"))
         {
             auto kw_tok = tok.prev();
-            auto node   = new ForNode{kw_tok};
+            auto node   = m_arena.alloc<ForNode>(kw_tok);
             node->tok   = kw_tok;
             tok.consumeToken("(");
             node->init = exprStmt();
@@ -152,7 +151,7 @@ private:
         if (tok.tryConsumeToken("while"))
         {
             auto kw_tok = tok.prev();
-            auto node   = new ForNode{kw_tok};
+            auto node   = m_arena.alloc<ForNode>(kw_tok);
             node->tok   = kw_tok;
             tok.consumeToken("(");
             node->cond = expr();
@@ -169,7 +168,7 @@ private:
 
     Node *compoundStmt()
     {
-        auto node = new BlockNode(tok.getToken());
+        auto node = m_arena.alloc<BlockNode>(tok.getToken());
 
         while (!tok.tryConsumeToken("}"))
         {
@@ -184,9 +183,9 @@ private:
     Node *exprStmt()
     {
         if (tok.tryConsumeToken(";"))
-            return new BlockNode(tok.prev());
+            return m_arena.alloc<BlockNode>(tok.prev());
 
-        auto node = new ExprStmtNode(expr(), tok.getToken());
+        auto node = m_arena.alloc<ExprStmtNode>(expr(), tok.getToken());
         tok.consumeToken(";");
         return node;
     }
@@ -204,7 +203,7 @@ private:
         {
             auto op_tok          = tok.prev();
             auto rhs             = assign();
-            auto assign_node     = new BinaryNode(NodeKind::ASSIGN, node, rhs, op_tok);
+            auto assign_node     = m_arena.alloc<BinaryNode>(NodeKind::ASSIGN, node, rhs, op_tok);
             assign_node->type_id = node->type_id;
             return assign_node;
         }
@@ -222,7 +221,7 @@ private:
             {
                 auto op_tok   = tok.prev();
                 auto rhs      = relational();
-                node          = new BinaryNode(NodeKind::EQ, node, rhs, op_tok);
+                node          = m_arena.alloc<BinaryNode>(NodeKind::EQ, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
                 continue;
             }
@@ -231,7 +230,7 @@ private:
             {
                 auto op_tok   = tok.prev();
                 auto rhs      = relational();
-                node          = new BinaryNode(NodeKind::NE, node, rhs, op_tok);
+                node          = m_arena.alloc<BinaryNode>(NodeKind::NE, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
                 continue;
             }
@@ -250,7 +249,7 @@ private:
             {
                 auto op_tok   = tok.prev();
                 auto rhs      = add();
-                node          = new BinaryNode(NodeKind::LE, node, rhs, op_tok);
+                node          = m_arena.alloc<BinaryNode>(NodeKind::LE, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
                 continue;
             }
@@ -259,7 +258,7 @@ private:
             {
                 auto op_tok   = tok.prev();
                 auto rhs      = add();
-                node          = new BinaryNode(NodeKind::LT, node, rhs, op_tok);
+                node          = m_arena.alloc<BinaryNode>(NodeKind::LT, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
                 continue;
             }
@@ -268,7 +267,7 @@ private:
             {
                 auto op_tok   = tok.prev();
                 auto rhs      = add();
-                node          = new BinaryNode(NodeKind::GE, node, rhs, op_tok);
+                node          = m_arena.alloc<BinaryNode>(NodeKind::GE, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
                 continue;
             }
@@ -277,7 +276,7 @@ private:
             {
                 auto op_tok   = tok.prev();
                 auto rhs      = add();
-                node          = new BinaryNode(NodeKind::GT, node, rhs, op_tok);
+                node          = m_arena.alloc<BinaryNode>(NodeKind::GT, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
                 continue;
             }
@@ -321,7 +320,7 @@ private:
                 auto op_tok   = tok.prev();
                 auto rhs      = unary();
                 TypeId ty     = node->type_id;
-                node          = new BinaryNode(NodeKind::MUL, node, rhs, op_tok);
+                node          = m_arena.alloc<BinaryNode>(NodeKind::MUL, node, rhs, op_tok);
                 node->type_id = ty;
                 continue;
             }
@@ -331,7 +330,7 @@ private:
                 auto op_tok   = tok.prev();
                 auto rhs      = unary();
                 TypeId ty     = node->type_id;
-                node          = new BinaryNode(NodeKind::DIV, node, rhs, op_tok);
+                node          = m_arena.alloc<BinaryNode>(NodeKind::DIV, node, rhs, op_tok);
                 node->type_id = ty;
                 continue;
             }
@@ -341,7 +340,7 @@ private:
                 auto op_tok   = tok.prev();
                 auto rhs      = unary();
                 TypeId ty     = node->type_id;
-                node          = new BinaryNode(NodeKind::MOD, node, rhs, op_tok);
+                node          = m_arena.alloc<BinaryNode>(NodeKind::MOD, node, rhs, op_tok);
                 node->type_id = ty;
                 continue;
             }
@@ -358,7 +357,7 @@ private:
         if (tok.tryConsumeToken("-"))
         {
             auto op_tok   = tok.prev();
-            auto node     = new UnaryNode(NodeKind::NEG, unary(), op_tok);
+            auto node     = m_arena.alloc<UnaryNode>(NodeKind::NEG, unary(), op_tok);
             node->type_id = node->lhs->type_id;
             return node;
         }
@@ -380,7 +379,7 @@ private:
             auto op_tok       = tok.prev();
             auto node         = unary();
             auto size         = m_sema.getTypeSize(node->type_id);
-            auto num_node     = new NumNode(size, op_tok);
+            auto num_node     = m_arena.alloc<NumNode>(size, op_tok);
             num_node->type_id = m_sema.getTypeContext().getIntTypeId();
             return num_node;
         }
@@ -427,14 +426,14 @@ private:
             if (!var)
                 DiagnosticEngine::errorOnTok(token, "undeclared identifier '{}'", token.getContent());
 
-            auto node     = new VarNode{var, token};
+            auto node     = m_arena.alloc<VarNode>(var, token);
             node->type_id = var->type_id;
             return node;
         }
 
         if (token.kind == TokenKind::STR)
         {
-            auto& ty_context    = m_sema.getTypeContext();
+            auto &ty_context   = m_sema.getTypeContext();
             auto str_array_tid = ty_context.getArrayTypeId(ty_context.getCharTypeId(), token.string_val.length() + 1);
 
             auto var               = newAnonGvar(str_array_tid);
@@ -442,14 +441,14 @@ private:
             var->string_data       = std::move(token.string_val);
             tok.skipToken();
 
-            auto node     = new VarNode{var, token};
+            auto node     = m_arena.alloc<VarNode>(var, token);
             node->type_id = str_array_tid;
             return node;
         }
 
         if (token.kind == TokenKind::NUM)
         {
-            auto node = new NumNode{getNumber(), tok.getToken()};
+            auto node = m_arena.alloc<NumNode>(getNumber(), tok.getToken());
             tok.skipToken();
             node->type_id = m_sema.getTypeContext().getIntTypeId();
             return node;
@@ -464,7 +463,7 @@ private:
         if (tok.tryConsumeToken("int"))
             return m_sema.getTypeContext().getIntTypeId();
 
-        if(tok.tryConsumeToken("char"))
+        if (tok.tryConsumeToken("char"))
             return m_sema.getTypeContext().getCharTypeId();
 
         DiagnosticEngine::errorOnTok(tok.getToken(), "expected a type specifier");
@@ -526,7 +525,7 @@ private:
 private:
     Node *funCall(const Token &ident)
     {
-        auto node     = new FuncCallNode{ident.getContent(), ident};
+        auto node     = m_arena.alloc<FuncCallNode>(ident.getContent(), ident);
         node->type_id = m_sema.getTypeContext().getIntTypeId();
 
         bool is_first_arg{true};
@@ -561,7 +560,8 @@ private:
         return value;
     }
 
-    bool isTypename(){
+    bool isTypename()
+    {
         auto token = tok.getToken().getContent();
         return (token == "int" || token == "char");
     }
@@ -583,17 +583,17 @@ private:
     {
         if constexpr (std::is_same_v<T, IsGlobal>)
         {
-            auto var      = new Variable{};
-            var->name     = name;
-            var->type_id  = tid;
+            auto var     = m_arena.alloc<Variable>();
+            var->name    = name;
+            var->type_id = tid;
             m_globals.push_back(std::move(var));
             return static_cast<Variable *>(m_globals.back());
         }
         else
         {
-            auto var     = new Variable{};
-            var->name    = name;
-            var->type_id = tid;
+            auto var      = m_arena.alloc<Variable>();
+            var->name     = name;
+            var->type_id  = tid;
             var->is_local = true;
             m_locals.push_back(std::move(var));
             return static_cast<Variable *>(m_locals.back());
@@ -615,19 +615,22 @@ private:
         return nullptr;
     }
 
-    std::string newUniqueName() {
+    std::string newUniqueName()
+    {
         static int id = 0;
         return ".L.." + std::to_string(id++);
     }
 
-    Variable* newAnonGvar(TypeId tid) {
+    Variable *newAnonGvar(TypeId tid)
+    {
         m_anon_pool.emplace_back(newUniqueName());
         return newVar<IsGlobal>(m_anon_pool.back(), tid);
     }
 
 private:
-    TokenViewer tok;
-    Sema &m_sema;
     std::vector<Symbol *> m_globals, m_locals;
     std::vector<std::string> m_anon_pool;
+    TokenViewer tok;
+    Sema &m_sema;
+    Arena &m_arena;
 };

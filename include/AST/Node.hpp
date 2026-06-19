@@ -33,7 +33,7 @@ enum class NodeKind
     FUNCALL
 };
 
-struct alignas(64) Node
+struct Node
 {
     Token tok;
     NodeKind kind;
@@ -43,7 +43,7 @@ struct alignas(64) Node
     virtual ~Node() = default;
 };
 
-struct alignas(64) NumNode : Node
+struct NumNode : Node
 {
     NumNode(std::int32_t v, const Token &t) : Node(NodeKind::NUM, t), val(v) {}
 
@@ -52,7 +52,7 @@ struct alignas(64) NumNode : Node
     std::int32_t val;
 };
 
-struct alignas(64) VarNode : Node
+struct VarNode : Node
 {
     VarNode(Variable *v, const Token &t) : Node(NodeKind::VAR, t), var(v) {}
 
@@ -61,21 +61,16 @@ struct alignas(64) VarNode : Node
     Variable *var;
 };
 
-struct alignas(128) UnaryNode : Node
+struct UnaryNode : Node
 {
     UnaryNode(NodeKind k, Node *l, const Token &t) : Node(k, t), lhs(l) {}
 
     UnaryNode(NodeKind k, Node *l) : Node(k, {}), lhs(l) {}
 
-    ~UnaryNode() override
-    {
-        delete lhs;
-    }
-
     Node *lhs;
 };
 
-struct alignas(128) BinaryNode : Node
+struct BinaryNode : Node
 {
     BinaryNode(NodeKind k, Node *l, Node *r, const Token &t)
         : Node(k, t), lhs(l), rhs(r) {}
@@ -83,88 +78,47 @@ struct alignas(128) BinaryNode : Node
     BinaryNode(NodeKind k, Node *l, Node *r)
         : Node(k, {}), lhs(l), rhs(r) {}
 
-    ~BinaryNode() override
-    {
-        delete lhs;
-        delete rhs;
-    }
-
     Node *lhs;
     Node *rhs;
 };
 
-struct alignas(128) ExprStmtNode : Node
+struct ExprStmtNode : Node
 {
     ExprStmtNode(Node *e, const Token &t)
         : Node(NodeKind::EXPR_STMT, t), expr(e) {}
 
-    ~ExprStmtNode() override
-    {
-        delete expr;
-    }
-
     Node *expr;
 };
 
-struct alignas(128) BlockNode : Node
+struct BlockNode : Node
 {
     BlockNode(const Token &t) : Node(NodeKind::BLOCK, t) {}
-
-    ~BlockNode() override
-    {
-        for (auto s : stmts)
-            delete s;
-    }
 
     std::vector<Node *> stmts;
 };
 
-struct alignas(128) ReturnNode : Node
+struct ReturnNode : Node
 {
     ReturnNode(Node *e, const Token &t)
         : Node(NodeKind::RETURN, t), expr(e) {}
 
-    ~ReturnNode() override
-    {
-        delete expr;
-    }
-
     Node *expr;
 };
 
-struct alignas(128) IfNode : Node
+struct IfNode : Node
 {
     IfNode(const Token &t)
         : Node(NodeKind::IF, t), cond(nullptr), then(nullptr), els(nullptr) {}
-
-    ~IfNode() override
-    {
-        delete cond;
-        delete then;
-        if (els)
-            delete els;
-    }
 
     Node *cond;
     Node *then;
     Node *els;
 };
 
-struct alignas(128) ForNode : Node
+struct ForNode : Node
 {
     ForNode(const Token &t)
         : Node(NodeKind::FOR, t), init(nullptr), cond(nullptr), inc(nullptr), then(nullptr) {}
-
-    ~ForNode() override
-    {
-        if (init)
-            delete init;
-        if (cond)
-            delete cond;
-        if (inc)
-            delete inc;
-        delete then;
-    }
 
     Node *init;
     Node *cond;
@@ -179,12 +133,6 @@ struct FuncCallNode : Node
 
     FuncCallNode(std::string_view name)
         : Node(NodeKind::FUNCALL, {}), func_name(name) {}
-
-    ~FuncCallNode() override
-    {
-        for (auto arg : args)
-            delete arg;
-    }
 
     std::string_view func_name;
     std::vector<Node *> args;

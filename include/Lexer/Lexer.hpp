@@ -4,9 +4,9 @@
 #include <Lexer/Token.hpp>
 #include <algorithm>
 #include <cctype>
-#include <string_view>
 #include <fstream>
 #include <sstream>
+#include <string_view>
 #include <vector>
 
 using namespace std::string_view_literals;
@@ -17,7 +17,7 @@ public:
     TokenViewer() = default;
     TokenViewer(const std::vector<Token> &tokens) : m_tokens(&tokens) {}
 
-    const Token getToken() const noexcept
+    const Token &getToken() const noexcept
     {
         return (*m_tokens)[m_index];
     }
@@ -146,7 +146,7 @@ public:
                     {
                         ++len;
                         ch = readEscapedChar(source, offset, len);
-                        buf+=ch;
+                        buf += ch;
                         continue;
                     }
                     buf += ch;
@@ -159,9 +159,10 @@ public:
             }
 
             // line comments
-            if(source.substr(offset,2) == "//"){
+            if (source.substr(offset, 2) == "//")
+            {
                 std::uint32_t len{1};
-                while(offset + len < maxlen && source[offset + len] != '\n')
+                while (offset + len < maxlen && source[offset + len] != '\n')
                     ++len;
                 offset += len + 1;
                 continue;
