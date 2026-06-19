@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <cctype>
 #include <string_view>
+#include <fstream>
+#include <sstream>
 #include <vector>
 
 using namespace std::string_view_literals;
@@ -90,6 +92,17 @@ class Lexer
 {
 public:
     Lexer() { tokens.reserve(4096); }
+    TokenViewer tokenizeFile(char *path)
+    {
+        std::ifstream ifs(path, std::ios::in);
+        if (!ifs.is_open())
+            throw std::runtime_error("Failed to open file");
+
+        std::ostringstream ss;
+        ss << ifs.rdbuf();
+        m_source = ss.str();
+        return tokenize(m_source);
+    }
     TokenViewer tokenize(std::string_view source)
     {
         std::uint32_t offset{};
@@ -179,7 +192,7 @@ public:
                 offset += len;
                 continue;
             }
-            
+
             if (offset + 2 < maxlen && isTwoCharOperator(source.substr(offset, 2)))
             {
                 tokens.emplace_back(source, TokenKind::OPERATOR, offset, 2);
@@ -311,5 +324,6 @@ private:
     std::array<std::string_view, 13> onechar_operator{"="sv, "!"sv, ">"sv, "<"sv, "&"sv, "|"sv, "^"sv, "-"sv, "+"sv, "*"sv, "/"sv, "%"sv, "~"sv};
     std::array<std::string_view, 8> punctator{","sv, ";"sv, "{"sv, "}"sv, "("sv, ")"sv, "["sv, "]"sv};
     std::array<std::string_view, 11> keywords{"char"sv, "short"sv, "int"sv, "float"sv, "double"sv, "main"sv, "if"sv, "while"sv, "for"sv, "return"sv, "sizeof"sv};
+    std::string m_source;
     std::vector<Token> tokens;
 };

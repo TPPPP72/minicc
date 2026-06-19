@@ -5,7 +5,7 @@
 int main(int argc, char *argv[])
 {
     Lexer lexer;
-    auto toks = lexer.tokenize(argv[1]);
+    auto toks = lexer.tokenizeFile(argv[1]);
     Sema sema;
     Parser parser{toks, sema};
     auto prog = parser.parseProgram();
