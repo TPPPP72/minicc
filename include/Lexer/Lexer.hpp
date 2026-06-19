@@ -130,7 +130,9 @@ public:
                     if (ch == '\\')
                     {
                         ++len;
-                        ch = readEscapedChar(source[offset + len]);
+                        ch = readEscapedChar(source, offset, len);
+                        buf+=ch;
+                        continue;
                     }
                     buf += ch;
                     ++len;
@@ -185,7 +187,45 @@ public:
     }
 
 private:
-    uint8_t readEscapedChar(char ch){
+    uint8_t readEscapedChar(std::string_view source, std::uint32_t offset, std::uint32_t &len)
+    {
+        char ch = source[offset + len];
+
+        if (ch == 'x')
+        {
+            ++len;
+            if (!isxdigit(source[offset + len]))
+                DiagnosticEngine::error("{} is not a hex escape sequence", source[offset + len]);
+
+            uint8_t temp{};
+            while (isxdigit(source[offset + len]))
+            {
+                temp = (temp << 4) + fromHex(source[offset + len]);
+                ++len;
+            }
+            return temp;
+        }
+
+        if (ch >= '0' && ch <= '7')
+        {
+            int c = ch - '0';
+            ++len;
+
+            if (offset + len < source.length() && source[offset + len] >= '0' && source[offset + len] <= '7')
+            {
+                c = (c << 3) + (source[offset + len] - '0');
+                ++len;
+
+                if (offset + len < source.length() && source[offset + len] >= '0' && source[offset + len] <= '7')
+                {
+                    c = (c << 3) + (source[offset + len] - '0');
+                    ++len;
+                }
+            }
+            return static_cast<uint8_t>(c);
+        }
+
+        ++len;
         switch (ch)
         {
         case 'a':
@@ -207,6 +247,15 @@ private:
         default:
             return ch;
         }
+    }
+
+    uint8_t fromHex(char ch)
+    {
+        if (isdigit(ch))
+            return ch - '0';
+        else if (islower(ch))
+            return ch - 'a' + 10;
+        return ch - 'A' + 10;
     }
 
 private:

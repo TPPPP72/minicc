@@ -439,7 +439,7 @@ private:
 
             auto var               = newAnonGvar(str_array_tid);
             var->is_string_literal = true;
-            var->string_data       = token.string_val;
+            var->string_data       = std::move(token.string_val);
             tok.skipToken();
 
             auto node     = new VarNode{var, token};
