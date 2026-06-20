@@ -8,6 +8,7 @@
 #include <Sema/Sema.hpp>
 #include <Util/Tags.hpp>
 #include <charconv>
+#include <cstring>
 
 class Parser
 {
@@ -602,21 +603,25 @@ private:
         return var;
     }
 
-    std::string newUniqueName()
+    std::string_view newUniqueName()
     {
         static int id = 0;
-        return ".L.." + std::to_string(id++);
+        std::string name_str = ".L.." + std::to_string(id++);
+        
+        auto buf = m_arena.alloc<char>(name_str.size());
+        std::memcpy(buf, name_str.data(), name_str.size());
+        
+        return std::string_view(buf, name_str.size());
     }
 
     Variable *newAnonGvar(TypeId tid)
     {
-        m_anon_pool.emplace_back(newUniqueName());
-        return newVar<IsGlobal>(m_anon_pool.back(), tid);
+        std::string_view safe_name = newUniqueName();
+        return newVar<IsGlobal>(safe_name, tid);
     }
 
 private:
     SymbolTable m_sym_table;
-    std::vector<std::string> m_anon_pool;
     TokenViewer tok;
     Sema &m_sema;
     Arena &m_arena;
