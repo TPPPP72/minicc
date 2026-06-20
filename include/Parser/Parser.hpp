@@ -3,6 +3,7 @@
 #include <Diag/Diag.hpp>
 #include <Lexer/Lexer.hpp>
 #include <Scope/Function.hpp>
+#include <Scope/SymbolTable.hpp>
 #include <Scope/Variable.hpp>
 #include <Sema/Sema.hpp>
 #include <Util/Tags.hpp>
@@ -11,19 +12,18 @@
 class Parser
 {
 public:
-    Parser(TokenViewer token_viewer, Sema &sema, Arena &arena) : tok(token_viewer), m_sema(sema), m_arena(arena) {}
+    Parser(TokenViewer token_viewer, Sema &sema, Arena &arena) : m_sym_table(arena), tok(token_viewer), m_sema(sema), m_arena(arena) {}
 
     std::vector<Symbol *> parseProgram()
     {
         while (tok.getToken().kind != TokenKind::ENDF)
         {
-            m_locals.clear();
             if (isFunction())
                 funcDecl();
             else
                 varDecl<IsGlobal>();
         }
-        return m_globals;
+        return m_sym_table.getGlobalSymbols();
     }
 
 private:
@@ -39,14 +39,17 @@ private:
         auto func  = m_arena.alloc<Function>();
         func->name = ident.getContent();
 
+        m_sym_table.insertGlobalIdent(func->name, func);
+        m_sym_table.enterScope();
+
         for (size_t i = 0; i < func_sign.param_types.size(); ++i)
             func->params.push_back(newVar<IsLocal>(func_sign.param_names[i], func_sign.param_types[i]));
 
         tok.consumeToken("{");
         func->body   = compoundStmt();
-        func->locals = m_locals;
+        func->locals = m_sym_table.collectLocalsFromCurrentTree();
 
-        m_globals.push_back(func);
+        m_sym_table.leaveScope();
     }
 
     template <typename T>
@@ -65,9 +68,6 @@ private:
             Token ident;
 
             TypeId final_tid = declarator(basety, ident);
-
-            if (findVarByName(ident.getContent()))
-                DiagnosticEngine::errorOnTok(ident, "redefinition of variable '{}'", ident.getContent());
 
             auto var = newVar<T>(ident.getContent(), final_tid);
 
@@ -170,6 +170,8 @@ private:
     {
         auto node = m_arena.alloc<BlockNode>(tok.getToken());
 
+        m_sym_table.enterScope();
+
         while (!tok.tryConsumeToken("}"))
         {
             if (tok.getToken().getContent() == "int")
@@ -177,6 +179,8 @@ private:
             else
                 node->stmts.push_back(stmt());
         }
+
+        m_sym_table.leaveScope();
         return node;
     }
 
@@ -422,7 +426,7 @@ private:
             if (tok.tryConsumeToken("("))
                 return funCall(token);
 
-            auto var = static_cast<Variable *>(findVarByName(token.getContent()));
+            auto var = static_cast<Variable *>(m_sym_table.lookupIdent(token.getContent()));
             if (!var)
                 DiagnosticEngine::errorOnTok(token, "undeclared identifier '{}'", token.getContent());
 
@@ -581,38 +585,21 @@ private:
     template <typename T>
     Variable *newVar(std::string_view name, TypeId tid)
     {
+        auto var     = m_arena.alloc<Variable>();
+        var->name    = name;
+        var->type_id = tid;
         if constexpr (std::is_same_v<T, IsGlobal>)
         {
-            auto var     = m_arena.alloc<Variable>();
-            var->name    = name;
-            var->type_id = tid;
-            m_globals.push_back(std::move(var));
-            return static_cast<Variable *>(m_globals.back());
+            m_sym_table.insertGlobalIdent(name, var);
         }
         else
         {
-            auto var      = m_arena.alloc<Variable>();
-            var->name     = name;
-            var->type_id  = tid;
             var->is_local = true;
-            m_locals.push_back(std::move(var));
-            return static_cast<Variable *>(m_locals.back());
+            m_sym_table.registerLocal(var);
+            if (!m_sym_table.insertIdent(name, var))
+                DiagnosticEngine::errorOnTok(tok.getToken(), "redefinition of variable '{}'", name);
         }
-    }
-
-    Symbol *findVarByName(std::string_view name)
-    {
-        for (auto var : m_locals)
-        {
-            if (var->name == name)
-                return var;
-        }
-        for (auto var : m_globals)
-        {
-            if (var->name == name)
-                return var;
-        }
-        return nullptr;
+        return var;
     }
 
     std::string newUniqueName()
@@ -628,7 +615,7 @@ private:
     }
 
 private:
-    std::vector<Symbol *> m_globals, m_locals;
+    SymbolTable m_sym_table;
     std::vector<std::string> m_anon_pool;
     TokenViewer tok;
     Sema &m_sema;
