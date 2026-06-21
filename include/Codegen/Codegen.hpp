@@ -138,6 +138,13 @@ private:
             store(node);
             return;
         }
+        case NodeKind::COMMA:
+        {
+            auto binary_node = static_cast<BinaryNode *>(node);
+            genExpr(binary_node->lhs);
+            genExpr(binary_node->rhs);
+            return;
+        }
         case NodeKind::FUNCALL:
         {
             auto func_node = static_cast<FuncCallNode *>(node);

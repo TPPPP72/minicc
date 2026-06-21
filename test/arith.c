@@ -32,6 +32,8 @@ int main()
     ASSERT(1, 1 >= 1);
     ASSERT(0, 1 >= 2);
 
+    ASSERT(3, (1, 2, 3));
+
     printf("OK\n");
     return 0;
 }

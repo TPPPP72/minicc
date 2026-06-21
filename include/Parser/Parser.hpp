@@ -197,7 +197,17 @@ private:
 
     Node *expr()
     {
-        return assign();
+        auto node =  assign();
+
+        while (tok.tryConsumeToken(","))
+        {
+            auto op_tok = tok.prev();
+            auto rhs    = assign();
+            node          = m_arena.alloc<BinaryNode>(NodeKind::COMMA, node, rhs, op_tok);
+            node->type_id = rhs->type_id;
+        }
+
+        return node;
     }
 
     Node *assign()

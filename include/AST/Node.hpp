@@ -21,6 +21,7 @@ enum class NodeKind
     MUL,
     DIV,
     MOD,
+    COMMA,
     NUM,
     EQ,
     NE,
