@@ -36,35 +36,17 @@ public:
         std::uint32_t loc       = token.loc;
         std::uint32_t len       = token.len;
 
-        if (loc > source.length())
-            loc = source.length();
+        std::uint32_t line_num = token.line_num;
+        std::uint32_t col_num  = token.col_num;
 
-        std::uint32_t line_num = 1;
-        std::uint32_t col_num  = 1;
-        size_t line_start      = 0;
+        size_t line_start = source.rfind('\n', loc);
+        line_start        = (line_start == std::string_view::npos) ? 0 : line_start + 1;
 
-        for (size_t i = 0; i < loc; ++i)
-        {
-            if (source[i] == '\n')
-            {
-                line_num++;
-                line_start = i + 1;
-                col_num    = 1;
-            }
-            else
-            {
-                col_num++;
-            }
-        }
-
-        size_t line_end = source.find('\n', line_start);
+        size_t line_end = source.find('\n', loc);
         if (line_end == std::string_view::npos)
-        {
             line_end = source.length();
-        }
 
-        std::string_view current_line =
-            source.substr(line_start, line_end - line_start);
+        std::string_view current_line = source.substr(line_start, line_end - line_start);
 
         std::string error_msg = std::vformat(fmt, std::make_format_args(args...));
 

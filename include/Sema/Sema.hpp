@@ -46,9 +46,9 @@ public:
             std::swap(lhs_tid, rhs_tid);
         }
 
-        auto scale      = m_arena.alloc<NumNode>(m_ty_ctx.getType(l.base_type_id).size);
+        auto scale      = m_arena.alloc<NumNode>(m_ty_ctx.getType(l.base_type_id).size, tok);
         scale->type_id  = m_ty_ctx.getIntTypeId();
-        auto factor     = m_arena.alloc<BinaryNode>(NodeKind::MUL, rhs, scale);
+        auto factor     = m_arena.alloc<BinaryNode>(NodeKind::MUL, rhs, scale, tok);
         factor->type_id = m_ty_ctx.getIntTypeId();
         auto node       = m_arena.alloc<BinaryNode>(NodeKind::ADD, lhs, factor, tok);
         node->type_id   = lhs->type_id;
@@ -74,9 +74,9 @@ public:
         {
             auto node         = m_arena.alloc<BinaryNode>(NodeKind::SUB, lhs, rhs, tok);
             node->type_id     = m_ty_ctx.getIntTypeId();
-            auto scale        = m_arena.alloc<NumNode>(m_ty_ctx.getType(l.base_type_id).size);
+            auto scale        = m_arena.alloc<NumNode>(m_ty_ctx.getType(l.base_type_id).size, tok);
             scale->type_id    = m_ty_ctx.getIntTypeId();
-            auto div_node     = m_arena.alloc<BinaryNode>(NodeKind::DIV, node, scale);
+            auto div_node     = m_arena.alloc<BinaryNode>(NodeKind::DIV, node, scale, tok);
             div_node->type_id = m_ty_ctx.getIntTypeId();
             return div_node;
         }
@@ -84,9 +84,9 @@ public:
         if (l.kind == TypeKind::INT && r.kind == TypeKind::PTR)
             DiagnosticEngine::errorOnTok(tok, "invalid operands");
 
-        auto scale      = m_arena.alloc<NumNode>(m_ty_ctx.getType(l.base_type_id).size);
+        auto scale      = m_arena.alloc<NumNode>(m_ty_ctx.getType(l.base_type_id).size, tok);
         scale->type_id  = m_ty_ctx.getIntTypeId();
-        auto factor     = m_arena.alloc<BinaryNode>(NodeKind::MUL, rhs, scale);
+        auto factor     = m_arena.alloc<BinaryNode>(NodeKind::MUL, rhs, scale, tok);
         factor->type_id = m_ty_ctx.getIntTypeId();
         auto node       = m_arena.alloc<BinaryNode>(NodeKind::SUB, lhs, factor, tok);
         node->type_id   = lhs->type_id;

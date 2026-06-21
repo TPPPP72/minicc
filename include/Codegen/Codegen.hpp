@@ -25,6 +25,8 @@ public:
 private:
     void genStmt(Node *node, std::string_view func_name)
     {
+        emitLoc(node->tok.line_num);
+
         switch (node->kind)
         {
         case NodeKind::EXPR_STMT:
@@ -91,6 +93,8 @@ private:
 
     void genExpr(Node *node)
     {
+        emitLoc(node->tok.line_num);
+
         switch (node->kind)
         {
         case NodeKind::NUM:
@@ -330,6 +334,15 @@ private:
         }
     }
 
+    void emitLoc(std::uint32_t line)
+    {
+        if (line == last_emitted_line)
+            return;
+
+        Assembler::loc(line);
+        last_emitted_line = line;
+    }
+
     int align_to(int n, int align)
     {
         return (n + align - 1) / align * align;
@@ -414,4 +427,5 @@ private:
     std::array<std::string_view, 6> argreg64{"rdi"sv, "rsi"sv, "rdx"sv, "rcx"sv, "r8"sv, "r9"sv};
     Sema &m_sema;
     int count{};
+    int last_emitted_line{-1};
 };

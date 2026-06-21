@@ -22,12 +22,12 @@ public:
         return (*m_tokens)[m_index];
     }
 
-    const Token prev() const noexcept
+    const Token &prev() const noexcept
     {
         return (*m_tokens)[m_index - 1];
     }
 
-    const Token next() const noexcept
+    const Token &next() const noexcept
     {
         return (*m_tokens)[m_index + 1];
     }
@@ -107,14 +107,28 @@ public:
     TokenViewer tokenize(std::string_view source)
     {
         std::uint32_t offset{};
-        std::uint32_t errlen{};
-
         std::uint32_t maxlen = source.length();
+
+        std::uint32_t current_line = 1;
+        std::uint32_t current_col  = 1;
 
         while (offset < maxlen)
         {
             if (source[offset] == ' ' || source[offset] == '\t' || source[offset] == '\n')
             {
+                if (source[offset] == '\n')
+                {
+                    current_line++;
+                    current_col = 1;
+                }
+                else if (source[offset] == '\t')
+                {
+                    current_col += 4;
+                }
+                else
+                {
+                    current_col++;
+                }
                 ++offset;
                 continue;
             }
@@ -125,22 +139,29 @@ public:
                 std::uint32_t len{1};
                 while (offset + len < maxlen && std::isdigit(source[offset + len]))
                     ++len;
-                tokens.emplace_back(source, TokenKind::NUM, offset, len);
+
+                tokens.emplace_back(source, TokenKind::NUM, offset, len, current_line, current_col);
+
                 offset += len;
+                current_col += len;
                 continue;
             }
 
-            // escape
+            // escape / strings
             if (source[offset] == '\"')
             {
                 std::uint32_t len{1};
                 std::string buf;
+
+                std::uint32_t str_line = current_line;
+                std::uint32_t str_col  = current_col;
+
                 while (offset + len < maxlen && source[offset + len] != '\"')
                 {
                     char ch = source[offset + len];
                     if (ch == '\0' || ch == '\n')
                     {
-                        tokens.emplace_back(source, TokenKind::STR, offset, len - 1);
+                        tokens.emplace_back(source, TokenKind::STR, offset, len - 1, current_line, current_col);
                         DiagnosticEngine::errorOnTok(tokens.back(), "unclosed string literial");
                     }
                     if (ch == '\\')
@@ -153,9 +174,12 @@ public:
                     buf += ch;
                     ++len;
                 }
-                tokens.emplace_back(source, TokenKind::STR, offset, len + 1);
+
+                tokens.emplace_back(source, TokenKind::STR, offset, len + 1, current_line, current_col);
                 tokens.back().string_val = buf;
+
                 offset += (len + 1);
+                current_col += (len + 1);
                 continue;
             }
 
@@ -165,17 +189,32 @@ public:
                 std::uint32_t len{1};
                 while (offset + len < maxlen && source[offset + len] != '\n')
                     ++len;
-                offset += len + 1;
+
+                offset += (len + 1);
+                current_line++;
+                current_col = 1;
                 continue;
             }
 
             // block comments
             if (source.substr(offset, 2) == "/*")
             {
-                std::uint32_t len{1};
+                std::uint32_t len{2};
                 while (offset + len < maxlen && source.substr(offset + len, 2) != "*/")
+                {
+                    if (source[offset + len] == '\n')
+                    {
+                        current_line++;
+                        current_col = 1;
+                    }
+                    else
+                    {
+                        current_col++;
+                    }
                     ++len;
-                offset += len + 2;
+                }
+                offset += (len + 2);
+                current_col += 2;
                 continue;
             }
 
@@ -187,39 +226,50 @@ public:
                     ++len;
 
                 if (isKeyword(source.substr(offset, len)))
-                    tokens.emplace_back(source, TokenKind::KEYWORD, offset, len);
+                    tokens.emplace_back(source, TokenKind::KEYWORD, offset, len, current_line, current_col);
                 else
-                    tokens.emplace_back(source, TokenKind::IDENT, offset, len);
+                    tokens.emplace_back(source, TokenKind::IDENT, offset, len, current_line, current_col);
 
                 offset += len;
+                current_col += len;
                 continue;
             }
 
+            // two-char operators
             if (offset + 2 < maxlen && isTwoCharOperator(source.substr(offset, 2)))
             {
-                tokens.emplace_back(source, TokenKind::OPERATOR, offset, 2);
+                tokens.emplace_back(source, TokenKind::OPERATOR, offset, 2, current_line, current_col);
                 offset += 2;
+                current_col += 2;
                 continue;
             }
 
+            // one-char operators
             if (isOneCharOperator(source.substr(offset, 1)))
             {
-                tokens.emplace_back(source, TokenKind::OPERATOR, offset, 1);
+                tokens.emplace_back(source, TokenKind::OPERATOR, offset, 1, current_line, current_col);
                 offset += 1;
+                current_col += 1;
                 continue;
             }
 
+            // punctuators
             if (isPunctator(source.substr(offset, 1)))
             {
-                tokens.emplace_back(source, TokenKind::PUNCT, offset, 1);
+                tokens.emplace_back(source, TokenKind::PUNCT, offset, 1, current_line, current_col);
                 offset += 1;
+                current_col += 1;
                 continue;
             }
 
+            tokens.emplace_back(source, TokenKind::PUNCT, offset, 1, current_line, current_col);
+            DiagnosticEngine::errorOnTok(tokens.back(), "unexpected token");
+
             ++offset;
+            current_col++;
         }
 
-        tokens.emplace_back(source, TokenKind::ENDF, offset, 0);
+        tokens.emplace_back(source, TokenKind::ENDF, offset, 0, current_line, current_col);
         return TokenViewer(tokens);
     }
 
