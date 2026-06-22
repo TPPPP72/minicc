@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Util/Align.hpp>
 #include <Scope/Variable.hpp>
 #include <Scope/Function.hpp>
 #include <Codegen/Assembler.hpp>
@@ -110,6 +111,7 @@ private:
             Assembler::neg(Reg{"rax"});
             return;
         }
+        case NodeKind::MEMBER:
         case NodeKind::VAR:
         {
             genAddr(node);
@@ -248,6 +250,20 @@ private:
             genExpr(unary_node->lhs);
             return;
         }
+        case NodeKind::COMMA:
+        {
+            auto binary_node = static_cast<BinaryNode *>(node);
+            genExpr(binary_node->lhs);
+            genAddr(binary_node->rhs);
+            return;
+        }
+        case NodeKind::MEMBER:
+        {
+            auto member_node = static_cast<MemberNode *>(node);
+            genAddr(member_node->lhs);
+            Assembler::add(Imm{member_node->offset}, Reg{"rax"});
+            return;
+        }
         default:
             break;
         }
@@ -350,11 +366,6 @@ private:
         last_emitted_line = line;
     }
 
-    int align_to(int n, int align)
-    {
-        return (n + align - 1) / align * align;
-    }
-
     void assign_lvar_offsets(const std::vector<Symbol *> &symbols)
     {
         for (auto sym : symbols)
@@ -368,7 +379,7 @@ private:
                     offset += m_sema.getTypeSize((*it)->type_id);
                     var->offset = -offset;
                 }
-                func->stack_size = align_to(offset, 16);
+                func->stack_size = alignTo(offset, 16);
             }
         }
     }

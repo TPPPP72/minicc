@@ -109,7 +109,7 @@ public:
     {
         Type l = m_ty_ctx.getType(lhs->type_id);
 
-        if (l.base_type_id == 0)
+        if (l.base_type_id == -1)
             DiagnosticEngine::errorOnTok(tok, "invalid operands");
 
         auto node     = m_arena.alloc<UnaryNode>(NodeKind::DEREF, lhs, tok);

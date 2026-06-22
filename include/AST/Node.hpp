@@ -31,7 +31,8 @@ enum class NodeKind
     GT,
     ADDR,
     DEREF,
-    FUNCALL
+    FUNCALL,
+    MEMBER
 };
 
 struct Node
@@ -60,6 +61,16 @@ struct VarNode : Node
     VarNode(Variable *v) : Node(NodeKind::VAR, {}), var(v) {}
 
     Variable *var;
+};
+
+struct MemberNode : Node
+{
+    MemberNode(Node *l, int of, const Token &t) : Node(NodeKind::MEMBER, t), lhs(l), offset(of) {}
+
+    MemberNode(Node *l, int of) : Node(NodeKind::MEMBER, {}), lhs(l), offset(of) {}
+
+    Node *lhs;
+    int offset;
 };
 
 struct UnaryNode : Node

@@ -28,6 +28,27 @@ public:
     }
 
 private:
+    TypeId structDecl()
+    {
+        tok.consumeToken("{");
+        std::vector<std::pair<std::string_view, TypeId>> members;
+        while (!tok.tryConsumeToken("}"))
+        {
+            auto basety = declSpec();
+            int count   = 0;
+            while (!tok.tryConsumeToken(";"))
+            {
+                if (count++ > 0)
+                    tok.consumeToken(",");
+
+                Token ident;
+                auto type_id = declarator(basety, ident);
+                members.emplace_back(ident.getContent(), type_id);
+            }
+        }
+        return m_sema.getTypeContext().getStructTypeId(members);
+    }
+
     void funcDecl()
     {
         auto basety = declSpec();
@@ -406,17 +427,27 @@ private:
     {
         auto node = primary();
 
-        while (tok.tryConsumeToken("["))
+        while (true)
         {
-            auto op_tok = tok.prev();
-            auto idx    = expr();
-            tok.consumeToken("]");
+            if (tok.tryConsumeToken("["))
+            {
+                auto op_tok = tok.prev();
+                auto idx    = expr();
+                tok.consumeToken("]");
 
-            auto offset = m_sema.buildAdd(node, idx, op_tok);
-            node        = m_sema.buildDeref(offset, op_tok);
+                auto offset = m_sema.buildAdd(node, idx, op_tok);
+                node        = m_sema.buildDeref(offset, op_tok);
+                continue;
+            }
+
+            if (tok.tryConsumeToken("."))
+            {
+                node = structRef(node);
+                continue;
+            }
+
+            return node;
         }
-
-        return node;
     }
 
     Node *primary()
@@ -480,6 +511,9 @@ private:
 
         if (tok.tryConsumeToken("char"))
             return m_sema.getTypeContext().getCharTypeId();
+
+        if(tok.tryConsumeToken("struct"))
+            return structDecl();
 
         DiagnosticEngine::errorOnTok(tok.getToken(), "expected a type specifier");
     }
@@ -556,6 +590,30 @@ private:
         return node;
     }
 
+    Node *structRef(Node *lhs)
+    {
+        if (m_sema.getTypeContext().getType(lhs->type_id).kind != TypeKind::STRUCT)
+            DiagnosticEngine::errorOnTok(lhs->tok, "not a struct");
+
+        auto &token = tok.getToken();
+
+
+        auto &struct_layout = m_sema.getTypeContext().getStructLayout(lhs->type_id);
+        auto &members       = struct_layout.members;
+        auto it             = std::find_if(members.begin(), members.end(), [&token](const StructMember &mem)
+                                           {
+                                   return mem.name == token.getContent();
+                                           });
+
+        if (it == members.end())
+            DiagnosticEngine::errorOnTok(token, "no such member");
+
+        auto node     = m_arena.alloc<MemberNode>(lhs, it->offset, token);
+        node->type_id = it->type_id;
+        tok.skipToken();
+        return node;
+    }
+
     Token getIdentToken()
     {
         if (tok.getToken().kind != TokenKind::IDENT && tok.getToken().kind != TokenKind::KEYWORD)
@@ -578,7 +636,7 @@ private:
     bool isTypename()
     {
         auto token = tok.getToken().getContent();
-        return (token == "int" || token == "char");
+        return (token == "int" || token == "char" || token == "struct");
     }
 
     bool isFunction()
@@ -589,7 +647,7 @@ private:
         RAIITokReverter rvt(tok);
         auto basety = declSpec();
         Token ident;
-        auto type_id = declarator(1, ident);
+        auto type_id = declarator(basety, ident);
         return m_sema.getTypeContext().getType(type_id).kind == TypeKind::FUNCTION;
     }
 
