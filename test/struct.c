@@ -126,12 +126,17 @@ int test_member_array1()
     return p[0];
 }
 
-int test_member_array2() {
-    struct { char a[3]; char b[5]; } x;
+int test_member_array2()
+{
+    struct
+    {
+        char a[3];
+        char b[5];
+    } x;
     char *p_a = x.a;
     char *p_b = &x.b[0];
     int delta = p_b - p_a;
-    
+
     x.b[0] = 7;
     return p_a[delta];
 }
@@ -209,6 +214,56 @@ int test_sizeof7()
     return sizeof(x);
 }
 
+int test_tag1()
+{
+    struct t
+    {
+        int a;
+        int b;
+    } x;
+    struct t y;
+    return sizeof(y);
+}
+
+int test_tag2()
+{
+    struct t
+    {
+        int a;
+        int b;
+    };
+    struct t y;
+    return sizeof(y);
+}
+
+int test_tag3()
+{
+    struct t
+    {
+        char a[2];
+    };
+    {
+        struct t
+        {
+            char a[4];
+        };
+    }
+    struct t y;
+    return sizeof(y);
+}
+
+int test_tag4()
+{
+    struct t
+    {
+        int x;
+    };
+    int t = 1;
+    struct t y;
+    y.x = 2;
+    return t + y.x;
+}
+
 int main()
 {
     ASSERT(1, test_basic1());
@@ -234,6 +289,11 @@ int main()
     ASSERT(48, test_sizeof5());
     ASSERT(2, test_sizeof6());
     ASSERT(16, test_sizeof7());
+
+    ASSERT(16, test_tag1());
+    ASSERT(16, test_tag2());
+    ASSERT(2, test_tag3());
+    ASSERT(3, test_tag4());
 
     printf("OK\n");
     return 0;

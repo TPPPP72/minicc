@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Lexer/Token.hpp"
 #include <Diag/Diag.hpp>
 #include <Lexer/Lexer.hpp>
 #include <Scope/Function.hpp>
@@ -30,7 +31,22 @@ public:
 private:
     TypeId structDecl()
     {
-        tok.consumeToken("{");
+        std::string_view tag;
+        auto &token = tok.getToken();
+        if (token.kind == TokenKind::IDENT)
+        {
+            tag = token.getContent();
+            tok.skipToken();
+        }
+        if (!tok.isToken("{"))
+        {
+            auto struct_tid = m_sym_table.lookupTag(tag);
+            if (struct_tid == -1)
+                DiagnosticEngine::errorOnTok(token, "struct undefined");
+            return struct_tid;
+        }
+
+        tok.skipToken(); // must be '{'
         std::vector<std::pair<std::string_view, TypeId>> members;
         while (!tok.tryConsumeToken("}"))
         {
@@ -46,7 +62,11 @@ private:
                 members.emplace_back(ident.getContent(), type_id);
             }
         }
-        return m_sema.getTypeContext().getStructTypeId(members);
+
+        auto struct_tid = m_sema.getTypeContext().getStructTypeId(members);
+        if (!tag.empty())
+            m_sym_table.insertTag(tag, struct_tid);
+        return struct_tid;
     }
 
     void funcDecl()

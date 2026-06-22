@@ -1,3 +1,4 @@
+#include "AST/Type.hpp"
 #include <Infra/Arena.hpp>
 #include <Scope/Variable.hpp>
 #include <string_view>
@@ -36,6 +37,15 @@ public:
         return true;
     }
 
+    bool insertTag(std::string_view name, TypeId tid)
+    {
+        auto &tags = m_current_scope->tags;
+        if (tags.find(name) != tags.end())
+            return false;
+        tags[name] = tid;
+        return true;
+    }
+
     void insertGlobalIdent(std::string_view name, Symbol *sym)
     {
         m_global_scope->idents[name] = sym;
@@ -50,6 +60,17 @@ public:
                 return it->second;
         }
         return nullptr;
+    }
+
+    TypeId lookupTag(std::string_view name) const
+    {
+        for (const Scope *sc = m_current_scope; sc != nullptr; sc = sc->parent)
+        {
+            auto it = sc->tags.find(name);
+            if (it != sc->tags.end())
+                return it->second;
+        }
+        return -1;
     }
 
     void registerLocal(Variable *var)
