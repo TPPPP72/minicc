@@ -376,7 +376,9 @@ private:
                 for (auto it = func->locals.rbegin(); it != func->locals.rend(); ++it)
                 {
                     auto var = static_cast<Variable *>(*it);
-                    offset += m_sema.getTypeSize((*it)->type_id);
+                    auto type = m_sema.getTypeContext().getType((*it)->type_id);
+                    offset += type.size;
+                    offset = alignTo(offset, type.align);
                     var->offset = -offset;
                 }
                 func->stack_size = alignTo(offset, 16);

@@ -20,14 +20,14 @@ public:
 
     TypeId getPointerTypeId(TypeId base_id)
     {
-        m_types.emplace_back(TypeKind::PTR, base_id, 8);
+        m_types.emplace_back(TypeKind::PTR, base_id, 8, 8);
         return m_types.size() - 1;
     }
 
     TypeId getArrayTypeId(TypeId base_id, std::uint32_t len)
     {
-        auto size = getType(base_id).size;
-        m_types.emplace_back(TypeKind::ARRAY, base_id, len * size);
+        auto type = getType(base_id);
+        m_types.emplace_back(TypeKind::ARRAY, base_id, len * type.size, type.align);
         return m_types.size() - 1;
     }
 

@@ -220,6 +220,26 @@ int test_sub2d_6()
     return x[1][2];
 }
 
+int test_align1()
+{
+    int x;
+    int y;
+    char z;
+    char *a = &y;
+    char *b = &z;
+    return b - a;
+}
+
+int test_align2()
+{
+    int x;
+    char y;
+    int z;
+    char *a = &y;
+    char *b = &z;
+    return b - a;
+}
+
 int main()
 {
     ASSERT(3, test_ptr1());
@@ -257,6 +277,9 @@ int main()
     ASSERT(3, test_sub2d_4());
     ASSERT(4, test_sub2d_5());
     ASSERT(5, test_sub2d_6());
+
+    ASSERT(15, test_align1());
+    ASSERT(1, test_align2());
 
     printf("OK\n");
     return 0;

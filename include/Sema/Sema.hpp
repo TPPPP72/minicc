@@ -73,7 +73,7 @@ public:
         if (l.kind == TypeKind::PTR && r.kind == TypeKind::PTR)
         {
             auto node         = m_arena.alloc<BinaryNode>(NodeKind::SUB, lhs, rhs, tok);
-            node->type_id     = m_ty_ctx.getIntTypeId();
+            node->type_id     = lhs_tid;
             auto scale        = m_arena.alloc<NumNode>(m_ty_ctx.getType(l.base_type_id).size, tok);
             scale->type_id    = m_ty_ctx.getIntTypeId();
             auto div_node     = m_arena.alloc<BinaryNode>(NodeKind::DIV, node, scale, tok);
