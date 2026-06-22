@@ -545,11 +545,17 @@ private:
 private:
     TypeId declSpec()
     {
+        if (tok.tryConsumeToken("char"))
+            return m_sema.getTypeContext().getCharTypeId();
+
+        if (tok.tryConsumeToken("short"))
+            return m_sema.getTypeContext().getShortTypeId();
+
         if (tok.tryConsumeToken("int"))
             return m_sema.getTypeContext().getIntTypeId();
 
-        if (tok.tryConsumeToken("char"))
-            return m_sema.getTypeContext().getCharTypeId();
+        if (tok.tryConsumeToken("long"))
+            return m_sema.getTypeContext().getLongTypeId();
 
         if(tok.tryConsumeToken("struct"))
             return structAndUnionDecl<IsStruct>();
@@ -617,7 +623,7 @@ private:
     Node *funCall(const Token &ident)
     {
         auto node     = m_arena.alloc<FuncCallNode>(ident.getContent(), ident);
-        node->type_id = m_sema.getTypeContext().getIntTypeId();
+        node->type_id = m_sema.getTypeContext().getLongTypeId();
 
         bool is_first_arg{true};
         while (!tok.tryConsumeToken(")"))
@@ -678,7 +684,7 @@ private:
     bool isTypename()
     {
         auto token = tok.getToken().getContent();
-        return (token == "int" || token == "char" || token == "struct" || token == "union");
+        return (token == "char" || token == "short" || token == "int" || token == "long" || token == "struct" || token == "union");
     }
 
     bool isFunction()

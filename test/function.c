@@ -26,16 +26,24 @@ int addx(int *x, int y)
     return *x + y;
 }
 
-int sub_char(char a, char b, char c)
-{
-    return a - b - c;
-}
-
 int fib(int x)
 {
     if (x <= 1)
         return 1;
     return fib(x - 1) + fib(x - 2);
+}
+
+int sub_char(char a, char b, char c)
+{
+    return a - b - c;
+}
+int sub_short(short a, short b, short c)
+{
+    return a - b - c;
+}
+int sub_long(long a, long b, long c)
+{
+    return a - b - c;
 }
 
 int main()
@@ -52,6 +60,8 @@ int main()
     ASSERT(55, fib(9));
 
     ASSERT(1, sub_char(7, 3, 3));
+    ASSERT(1, sub_short(7, 3, 3));
+    ASSERT(1, sub_long(7, 3, 3));
 
     printf("OK\n");
     return 0;

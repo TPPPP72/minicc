@@ -278,7 +278,7 @@ int main()
     ASSERT(4, test_sub2d_5());
     ASSERT(5, test_sub2d_6());
 
-    ASSERT(15, test_align1());
+    ASSERT(7, test_align1());
     ASSERT(1, test_align2());
 
     printf("OK\n");

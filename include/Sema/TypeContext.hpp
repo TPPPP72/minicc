@@ -11,13 +11,20 @@ class TypeContext
 public:
     TypeContext()
     {
-        m_types.emplace_back(TypeKind::INT, -1, 8, 8);
+        m_types.reserve(32);
         m_types.emplace_back(TypeKind::CHAR, -1, 1, 1);
+        m_types.emplace_back(TypeKind::SHORT, -1, 2, 2);
+        m_types.emplace_back(TypeKind::INT, -1, 4, 4);
+        m_types.emplace_back(TypeKind::LONG, -1, 8, 8);
     }
 
-    TypeId getIntTypeId() const noexcept { return 0; }
+    TypeId getCharTypeId() const noexcept { return 0; }
 
-    TypeId getCharTypeId() const noexcept { return 1; }
+    TypeId getShortTypeId() const noexcept { return 1; }
+
+    TypeId getIntTypeId() const noexcept { return 2; }
+
+    TypeId getLongTypeId() const noexcept { return 3; }
 
     TypeId getPointerTypeId(TypeId base_id)
     {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <format>
 #include <fstream>
 #include <iostream>
@@ -111,6 +112,8 @@ public:
     static void lea(Src src, Dst dst) { stream() << std::format("  lea {}, {}\n", format_op(src), format_op(dst)); }
 
     static void movsbq(Mem src, Reg dst) { stream() << std::format("  movsbq {}, {}\n", format_op(src), format_op(dst)); }
+    static void movswq(Mem src, Reg dst) { stream() << std::format("  movswq {}, {}\n", format_op(src), format_op(dst)); }
+    static void movsxd(Mem src, Reg dst) { stream() << std::format("  movsxd {}, {}\n", format_op(src), format_op(dst)); }
 
     static void idiv(Reg op) { stream() << "  cqo\n"
                                         << std::format("  idiv {}\n", format_op(op)); }

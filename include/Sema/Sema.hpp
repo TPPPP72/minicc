@@ -136,7 +136,7 @@ private:
 
     bool isInteger(TypeKind kind)
     {
-        return kind == TypeKind::INT || kind == TypeKind::CHAR;
+        return kind == TypeKind::CHAR || kind == TypeKind::SHORT || kind == TypeKind::INT || kind == TypeKind::LONG;
     }
 
 private:

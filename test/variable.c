@@ -99,6 +99,14 @@ int test_sizeof_12()
     sizeof(x = 2);
     return x;
 }
+int test_sizeof_13(){
+    short x;
+    return sizeof(x);
+}
+int test_sizeof_14(){
+    long x;
+    return sizeof(x);
+}
 
 int test_gvar1()
 {
@@ -201,18 +209,20 @@ int main()
     ASSERT(3, test_var5());
     ASSERT(8, test_var6());
 
-    ASSERT(8, test_sizeof_1());
-    ASSERT(8, test_sizeof_2());
+    ASSERT(4, test_sizeof_1());
+    ASSERT(4, test_sizeof_2());
     ASSERT(8, test_sizeof_3());
-    ASSERT(32, test_sizeof_4());
-    ASSERT(96, test_sizeof_5());
-    ASSERT(32, test_sizeof_6());
-    ASSERT(8, test_sizeof_7());
-    ASSERT(9, test_sizeof_8());
-    ASSERT(9, test_sizeof_9());
-    ASSERT(8, test_sizeof_10());
-    ASSERT(8, test_sizeof_11());
+    ASSERT(16, test_sizeof_4());
+    ASSERT(48, test_sizeof_5());
+    ASSERT(16, test_sizeof_6());
+    ASSERT(4, test_sizeof_7());
+    ASSERT(5, test_sizeof_8());
+    ASSERT(5, test_sizeof_9());
+    ASSERT(4, test_sizeof_10());
+    ASSERT(4, test_sizeof_11());
     ASSERT(1, test_sizeof_12());
+    ASSERT(2, test_sizeof_13());
+    ASSERT(8, test_sizeof_14());
 
     ASSERT(0, g1);
     ASSERT(3, test_gvar1());
@@ -220,8 +230,8 @@ int main()
     ASSERT(1, get_g2_1());
     ASSERT(2, get_g2_2());
     ASSERT(3, get_g2_3());
-    ASSERT(8, sizeof(g1));
-    ASSERT(32, sizeof(g2));
+    ASSERT(4, sizeof(g1));
+    ASSERT(16, sizeof(g2));
 
     ASSERT(1, test_char1());
     ASSERT(1, test_char2());

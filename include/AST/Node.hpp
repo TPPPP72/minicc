@@ -47,11 +47,11 @@ struct Node
 
 struct NumNode : Node
 {
-    NumNode(std::int32_t v, const Token &t) : Node(NodeKind::NUM, t), val(v) {}
+    NumNode(std::int64_t v, const Token &t) : Node(NodeKind::NUM, t), val(v) {}
 
-    NumNode(std::int32_t v) : Node(NodeKind::NUM, {}), val(v) {}
+    NumNode(std::int64_t v) : Node(NodeKind::NUM, {}), val(v) {}
 
-    std::int32_t val;
+    std::int64_t val;
 };
 
 struct VarNode : Node

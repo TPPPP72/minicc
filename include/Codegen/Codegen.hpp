@@ -1,12 +1,11 @@
 #pragma once
 
-#include "AST/Type.hpp"
-#include <Util/Align.hpp>
-#include <Scope/Variable.hpp>
-#include <Scope/Function.hpp>
 #include <Codegen/Assembler.hpp>
 #include <Diag/Diag.hpp>
+#include <Scope/Function.hpp>
+#include <Scope/Variable.hpp>
 #include <Sema/Sema.hpp>
+#include <Util/Align.hpp>
 
 using namespace std::string_view_literals;
 
@@ -279,10 +278,21 @@ private:
         if (type.kind == TypeKind::ARRAY || type.kind == TypeKind::STRUCT || type.kind == TypeKind::UNION)
             return;
 
-        if (type.size == 1)
+        switch (type.size)
+        {
+        case 1:
             Assembler::movsbq(Mem{"rax"}, Reg{"rax"});
-        else
+            return;
+        case 2:
+            Assembler::movswq(Mem{"rax"}, Reg{"rax"});
+            return;
+        case 4:
+            Assembler::movsxd(Mem{"rax"}, Reg{"rax"});
+            return;
+        default:
             Assembler::mov(Mem{"rax"}, Reg{"rax"});
+            return;
+        }
     }
 
     void store(Node *node)
@@ -300,14 +310,48 @@ private:
             return;
         }
 
-        if (type.size == 1)
+        switch (type.size)
+        {
+        case 1:
             Assembler::mov(Reg{"al"}, Mem{"rdi"});
-        else
+            return;
+        case 2:
+            Assembler::mov(Reg{"ax"}, Mem{"rdi"});
+            return;
+        case 4:
+            Assembler::mov(Reg{"eax"}, Mem{"rdi"});
+            return;
+        default:
             Assembler::mov(Reg{"rax"}, Mem{"rdi"});
+            return;
+        }
     }
 
-    void emitData(const std::vector<Symbol *> &symbols){
-        for(auto sym : symbols){
+    void store_gp(int r, int offset, int sz)
+    {
+        switch (sz)
+        {
+        case 1:
+            Assembler::mov(Reg{argreg8[r]}, Mem{"rbp", offset});
+            return;
+        case 2:
+            Assembler::mov(Reg{argreg16[r]}, Mem{"rbp", offset});
+            return;
+        case 4:
+            Assembler::mov(Reg{argreg32[r]}, Mem{"rbp", offset});
+            return;
+        case 8:
+            Assembler::mov(Reg{argreg64[r]}, Mem{"rbp", offset});
+            return;
+        }
+
+        DiagnosticEngine::error("store_gp unreachable");
+    }
+
+    void emitData(const std::vector<Symbol *> &symbols)
+    {
+        for (auto sym : symbols)
+        {
             if (auto var = dynamic_cast<Variable *>(sym))
             {
                 Assembler::directive("data");
@@ -350,10 +394,8 @@ private:
                 int i = 0;
                 for (auto var : func->params)
                 {
-                    if (m_sema.getTypeSize(var->type_id) == 1)
-                        Assembler::mov(Reg{argreg8[i++],}, Mem{"rbp", static_cast<Variable *>(var)->offset});
-                    else
-                        Assembler::mov(Reg{argreg64[i++]}, Mem{"rbp", static_cast<Variable *>(var)->offset});
+                    auto var_node = static_cast<Variable *>(var);
+                    store_gp(i++, var_node->offset, m_sema.getTypeSize(var->type_id));
                 }
 
                 auto block_node = static_cast<BlockNode *>(func->body);
@@ -386,10 +428,10 @@ private:
                 int offset = 0;
                 for (auto it = func->locals.rbegin(); it != func->locals.rend(); ++it)
                 {
-                    auto var = static_cast<Variable *>(*it);
+                    auto var  = static_cast<Variable *>(*it);
                     auto type = m_sema.getTypeContext().getType((*it)->type_id);
                     offset += type.size;
-                    offset = alignTo(offset, type.align);
+                    offset      = alignTo(offset, type.align);
                     var->offset = -offset;
                 }
                 func->stack_size = alignTo(offset, 16);
@@ -455,6 +497,8 @@ private:
 
 private:
     std::array<std::string_view, 6> argreg8{"dil"sv, "sil"sv, "dl"sv, "cl"sv, "r8b"sv, "r9b"sv};
+    std::array<std::string_view, 6> argreg16{"di"sv, "si"sv, "dx"sv, "cx"sv, "r8w"sv, "r9w"sv};
+    std::array<std::string_view, 6> argreg32{"edi"sv, "esi"sv, "edx"sv, "ecx"sv, "r8d"sv, "r9d"sv};
     std::array<std::string_view, 6> argreg64{"rdi"sv, "rsi"sv, "rdx"sv, "rcx"sv, "r8"sv, "r9"sv};
     Sema &m_sema;
     int count{};

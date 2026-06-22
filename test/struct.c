@@ -213,6 +213,24 @@ int test_sizeof7()
     } x;
     return sizeof(x);
 }
+int test_sizeof8()
+{
+    struct
+    {
+        char a;
+        short b;
+    } x;
+    return sizeof(x);
+}
+int test_sizeof9()
+{
+    struct
+    {
+        char a;
+        long b;
+    } x;
+    return sizeof(x);
+}
 
 int test_tag1()
 {
@@ -349,16 +367,18 @@ int main()
 
     ASSERT(6, test_nested());
 
-    ASSERT(8, test_sizeof1());
-    ASSERT(16, test_sizeof2());
-    ASSERT(24, test_sizeof3());
-    ASSERT(32, test_sizeof4());
-    ASSERT(48, test_sizeof5());
+    ASSERT(4, test_sizeof1());
+    ASSERT(8, test_sizeof2());
+    ASSERT(12, test_sizeof3());
+    ASSERT(16, test_sizeof4());
+    ASSERT(24, test_sizeof5());
     ASSERT(2, test_sizeof6());
-    ASSERT(16, test_sizeof7());
+    ASSERT(8, test_sizeof7());
+    ASSERT(4, test_sizeof8());
+    ASSERT(16, test_sizeof9());
 
-    ASSERT(16, test_tag1());
-    ASSERT(16, test_tag2());
+    ASSERT(8, test_tag1());
+    ASSERT(8, test_tag2());
     ASSERT(2, test_tag3());
     ASSERT(3, test_tag4());
 
