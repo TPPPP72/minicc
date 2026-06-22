@@ -11,7 +11,8 @@ enum class TypeKind : std::uint32_t
     PTR,
     FUNCTION,
     ARRAY,
-    STRUCT
+    STRUCT,
+    UNION
 };
 
 using TypeId = std::int32_t;
@@ -31,14 +32,14 @@ struct alignas(64) FunctionSignature
     TypeId return_type_id;
 };
 
-struct alignas(32) StructMember
+struct alignas(32) Member
 {
     std::string_view name;
     TypeId type_id;
     std::uint32_t offset;
 };
 
-struct alignas(32) StructLayout{
-    std::vector<StructMember> members;
+struct alignas(32) Layout{
+    std::vector<Member> members;
     std::uint32_t align{};
 };

@@ -184,25 +184,28 @@ public:
             }
 
             // line comments
-            if (source.substr(offset, 2) == "//")
+            if (offset + 1 < maxlen && source[offset] == '/' && source[offset + 1] == '/')
             {
-                std::uint32_t len{1};
-                while (offset + len < maxlen && source[offset + len] != '\n')
-                    ++len;
-
-                offset += (len + 1);
-                current_line++;
-                current_col = 1;
+                offset += 2;
+                while (offset < maxlen && source[offset] != '\n')
+                    ++offset;
                 continue;
             }
 
             // block comments
-            if (source.substr(offset, 2) == "/*")
+            if (offset + 1 < maxlen && source[offset] == '/' && source[offset + 1] == '*')
             {
-                std::uint32_t len{2};
-                while (offset + len < maxlen && source.substr(offset + len, 2) != "*/")
+                current_col += 2;
+                offset += 2;
+                while (offset < maxlen)
                 {
-                    if (source[offset + len] == '\n')
+                    if (offset + 1 < maxlen && source[offset] == '*' && source[offset + 1] == '/')
+                    {
+                        offset += 2;
+                        current_col += 2;
+                        break;
+                    }
+                    if (source[offset] == '\n')
                     {
                         current_line++;
                         current_col = 1;
@@ -211,10 +214,8 @@ public:
                     {
                         current_col++;
                     }
-                    ++len;
+                    ++offset;
                 }
-                offset += (len + 2);
-                current_col += 2;
                 continue;
             }
 
@@ -236,7 +237,7 @@ public:
             }
 
             // two-char operators
-            if (offset + 2 < maxlen && isTwoCharOperator(source.substr(offset, 2)))
+            if (offset + 1 < maxlen && isTwoCharOperator(source.substr(offset, 2)))
             {
                 tokens.emplace_back(source, TokenKind::OPERATOR, offset, 2, current_line, current_col);
                 offset += 2;
@@ -375,7 +376,7 @@ private:
     std::array<std::string_view, 17> twochar_operator{"=="sv, "!="sv, ">="sv, "<="sv, "&&"sv, "||"sv, ">>"sv, "<<"sv, "+="sv, "-="sv, "*="sv, "/="sv, "%="sv, "&="sv, "|="sv, "^="sv, "->"sv};
     std::array<std::string_view, 14> onechar_operator{"="sv, "!"sv, ">"sv, "<"sv, "&"sv, "|"sv, "^"sv, "-"sv, "+"sv, "*"sv, "/"sv, "%"sv, "~"sv, "."sv};
     std::array<std::string_view, 8> punctator{","sv, ";"sv, "{"sv, "}"sv, "("sv, ")"sv, "["sv, "]"sv};
-    std::array<std::string_view, 12> keywords{"char"sv, "short"sv, "int"sv, "float"sv, "double"sv, "main"sv, "if"sv, "while"sv, "for"sv, "return"sv, "sizeof"sv, "struct"sv};
+    std::array<std::string_view, 13> keywords{"char"sv, "short"sv, "int"sv, "float"sv, "double"sv, "main"sv, "if"sv, "while"sv, "for"sv, "return"sv, "sizeof"sv, "struct"sv, "union"sv};
     std::string m_source;
     std::vector<Token> tokens;
 };

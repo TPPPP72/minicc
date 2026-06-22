@@ -1,9 +1,10 @@
 #pragma once
 
+#include <Util/Tags.hpp>
 #include <AST/Type.hpp>
+#include <Util/Align.hpp>
 #include <string_view>
 #include <vector>
-#include <Util/Align.hpp>
 
 class TypeContext
 {
@@ -51,36 +52,67 @@ public:
 
     TypeId getStructTypeId(const std::vector<std::pair<std::string_view, TypeId>> &raw_members)
     {
-        TypeId layout_id = static_cast<TypeId>(m_struct_layouts.size());
-        auto &layout     = m_struct_layouts.emplace_back();
+        return getLayoutTypeId<IsStruct>(raw_members);
+    }
 
-        std::uint32_t current_align = 1;
+    TypeId getUnionTypeId(const std::vector<std::pair<std::string_view, TypeId>> &raw_members)
+    {
+        return getLayoutTypeId<IsUnion>(raw_members);
+    }
+
+    const Layout &getLayout(TypeId tid) const
+    {
+        return m_layouts[m_types[tid].base_type_id];
+    }
+
+private:
+    template <typename T>
+    TypeId getLayoutTypeId(const std::vector<std::pair<std::string_view, TypeId>> &raw_members)
+    {
+        TypeId layout_id = static_cast<TypeId>(m_layouts.size());
+        auto &layout     = m_layouts.emplace_back();
+
+        std::uint32_t current_align  = 1;
         std::uint32_t current_offset = 0;
-        for (const auto &[name, member_type_id] : raw_members)
-        {
-            auto member_type = getType(member_type_id);
-            current_offset = alignTo(current_offset, member_type.align);
-            layout.members.emplace_back(name, member_type_id, current_offset);
-            current_offset += member_type.size;
 
-            if(current_align < member_type.align)
-                current_align = member_type.align;
+        if constexpr (std::is_same_v<T, IsStruct>)
+        {
+            for (const auto &[name, member_type_id] : raw_members)
+            {
+                auto member_type = getType(member_type_id);
+                current_offset   = alignTo(current_offset, member_type.align);
+                layout.members.emplace_back(name, member_type_id, current_offset);
+                current_offset += member_type.size;
+
+                if (current_align < member_type.align)
+                    current_align = member_type.align;
+            }
+        }
+        else
+        {
+            for (const auto &[name, member_type_id] : raw_members)
+            {
+                layout.members.emplace_back(name, member_type_id, 0);
+                auto member_type = getType(member_type_id);
+                if (current_align < member_type.align)
+                    current_align = member_type.align;
+                if (current_offset < member_type.size)
+                    current_offset = member_type.size;
+            }
         }
 
         TypeId new_type_id = static_cast<TypeId>(m_types.size());
 
-        m_types.emplace_back(TypeKind::STRUCT, layout_id, alignTo(current_offset, current_align), current_align);
+        if constexpr (std::is_same_v<T, IsStruct>)
+            m_types.emplace_back(TypeKind::STRUCT, layout_id, alignTo(current_offset, current_align), current_align);
+        else
+            m_types.emplace_back(TypeKind::UNION, layout_id, alignTo(current_offset, current_align), current_align);
 
         return new_type_id;
-    }
-
-    const StructLayout &getStructLayout(TypeId tid) const
-    {
-        return m_struct_layouts[m_types[tid].base_type_id];
     }
 
 private:
     std::vector<Type> m_types;
     std::vector<FunctionSignature> m_func_signatures;
-    std::vector<StructLayout> m_struct_layouts;
+    std::vector<Layout> m_layouts;
 };

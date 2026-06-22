@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AST/Type.hpp"
 #include <Diag/Diag.hpp>
 #include <Lexer/Lexer.hpp>
 #include <Scope/Function.hpp>
@@ -28,7 +29,8 @@ public:
     }
 
 private:
-    TypeId structDecl()
+    template<typename T>
+    TypeId structAndUnionDecl()
     {
         std::string_view tag;
         auto &token = tok.getToken();
@@ -39,10 +41,15 @@ private:
         }
         if (!tok.isToken("{"))
         {
-            auto struct_tid = m_sym_table.lookupTag(tag);
-            if (struct_tid == -1)
-                DiagnosticEngine::errorOnTok(token, "struct undefined");
-            return struct_tid;
+            auto layout_tid = m_sym_table.lookupTag(tag);
+            if (layout_tid == -1)
+            {
+                if constexpr (std::is_same_v<T, IsStruct>)
+                    DiagnosticEngine::errorOnTok(token, "struct undefined");
+                else
+                    DiagnosticEngine::errorOnTok(token, "union undefined");
+            }
+            return layout_tid;
         }
 
         tok.skipToken(); // must be '{'
@@ -62,10 +69,16 @@ private:
             }
         }
 
-        auto struct_tid = m_sema.getTypeContext().getStructTypeId(members);
+        TypeId layout_tid;
+
+        if constexpr (std::is_same_v<T, IsStruct>)
+            layout_tid = m_sema.getTypeContext().getStructTypeId(members);
+        else
+            layout_tid = m_sema.getTypeContext().getUnionTypeId(members);
+
         if (!tag.empty())
-            m_sym_table.insertTag(tag, struct_tid);
-        return struct_tid;
+            m_sym_table.insertTag(tag, layout_tid);
+        return layout_tid;
     }
 
     void funcDecl()
@@ -539,7 +552,10 @@ private:
             return m_sema.getTypeContext().getCharTypeId();
 
         if(tok.tryConsumeToken("struct"))
-            return structDecl();
+            return structAndUnionDecl<IsStruct>();
+
+        if(tok.tryConsumeToken("union"))
+            return structAndUnionDecl<IsUnion>();
 
         DiagnosticEngine::errorOnTok(tok.getToken(), "expected a type specifier");
     }
@@ -618,20 +634,21 @@ private:
 
     Node *structRef(Node *lhs)
     {
-        if (m_sema.getTypeContext().getType(lhs->type_id).kind != TypeKind::STRUCT)
-            DiagnosticEngine::errorOnTok(lhs->tok, "not a struct");
+        auto kind = m_sema.getTypeContext().getType(lhs->type_id).kind;
+        if (kind != TypeKind::STRUCT && kind != TypeKind::UNION)
+            DiagnosticEngine::errorOnTok(lhs->tok, "not a struct or union");
 
         auto &token = tok.getToken();
 
-        auto &struct_layout = m_sema.getTypeContext().getStructLayout(lhs->type_id);
+        auto &struct_layout = m_sema.getTypeContext().getLayout(lhs->type_id);
         auto &members       = struct_layout.members;
-        auto it             = std::find_if(members.begin(), members.end(), [&token](const StructMember &mem)
+        auto it             = std::find_if(members.begin(), members.end(), [&token](const Member &mem)
                                            {
                                    return mem.name == token.getContent();
                                            });
 
         if (it == members.end())
-            DiagnosticEngine::errorOnTok(token, "no such member");
+            DiagnosticEngine::errorOnTok(token, "no member '{}'", token.getContent());
 
         auto node     = m_arena.alloc<MemberNode>(lhs, it->offset, token);
         node->type_id = it->type_id;
@@ -661,7 +678,7 @@ private:
     bool isTypename()
     {
         auto token = tok.getToken().getContent();
-        return (token == "int" || token == "char" || token == "struct");
+        return (token == "int" || token == "char" || token == "struct" || token == "union");
     }
 
     bool isFunction()
