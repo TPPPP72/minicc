@@ -224,7 +224,6 @@ int test_tag1()
     struct t y;
     return sizeof(y);
 }
-
 int test_tag2()
 {
     struct t
@@ -235,7 +234,6 @@ int test_tag2()
     struct t y;
     return sizeof(y);
 }
-
 int test_tag3()
 {
     struct t
@@ -251,7 +249,6 @@ int test_tag3()
     struct t y;
     return sizeof(y);
 }
-
 int test_tag4()
 {
     struct t
@@ -274,7 +271,6 @@ int test_pointer_access1()
     x.a         = 3;
     return y->a;
 }
-
 int test_pointer_access2()
 {
     struct t
@@ -284,6 +280,55 @@ int test_pointer_access2()
     struct t *y = &x;
     y->a        = 3;
     return x.a;
+}
+
+int test_assign1()
+{
+    struct
+    {
+        int a, b;
+    } x, y;
+    x.a = 3;
+    y   = x;
+    return y.a;
+}
+int test_assign2()
+{
+    struct t
+    {
+        int a, b;
+    };
+    struct t x;
+    x.a = 7;
+    struct t y;
+    struct t *z = &y;
+    *z          = x;
+    return y.a;
+}
+int test_assign3()
+{
+    struct t
+    {
+        int a, b;
+    };
+    struct t x;
+    x.a = 7;
+    struct t y;
+    struct t *p = &x;
+    struct t *q = &y;
+    *q          = *p;
+    return y.a;
+}
+int test_assign4()
+{
+    struct t
+    {
+        char a, b;
+    };
+    struct t x, y;
+    x.a = 5;
+    y   = x;
+    return y.a;
 }
 
 int main()
@@ -319,6 +364,11 @@ int main()
 
     ASSERT(3, test_pointer_access1());
     ASSERT(3, test_pointer_access2());
+
+    ASSERT(3, test_assign1());
+    ASSERT(7, test_assign2());
+    ASSERT(7, test_assign3());
+    ASSERT(5, test_assign4());
 
     printf("OK\n");
     return 0;

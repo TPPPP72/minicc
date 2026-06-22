@@ -1,6 +1,6 @@
 #include "test.h"
 
-int test_union_size()
+int test_size()
 {
     union
     {
@@ -10,7 +10,7 @@ int test_union_size()
     return sizeof(x);
 }
 
-int test_union_byte0()
+int test_byte0()
 {
     union
     {
@@ -20,8 +20,7 @@ int test_union_byte0()
     x.a = 515;
     return x.b[0];
 }
-
-int test_union_byte1()
+int test_byte1()
 {
     union
     {
@@ -31,8 +30,7 @@ int test_union_byte1()
     x.a = 515;
     return x.b[1];
 }
-
-int test_union_byte2()
+int test_byte2()
 {
     union
     {
@@ -42,8 +40,7 @@ int test_union_byte2()
     x.a = 515;
     return x.b[2];
 }
-
-int test_union_byte3()
+int test_byte3()
 {
     union
     {
@@ -54,13 +51,43 @@ int test_union_byte3()
     return x.b[3];
 }
 
+int test_assign1()
+{
+    union
+    {
+        int a, b;
+    } x, y;
+    x.a = 3;
+    y.a = 5;
+    y   = x;
+    return y.a;
+}
+int test_assign2()
+{
+    union
+    {
+        struct
+        {
+            int a, b;
+        } c;
+    } x, y;
+    x.c.b = 3;
+    y.c.b = 5;
+    y     = x;
+    return y.c.b;
+}
+
 int main()
 {
-    ASSERT(8, test_union_size());
-    ASSERT(3, test_union_byte0());
-    ASSERT(2, test_union_byte1());
-    ASSERT(0, test_union_byte2());
-    ASSERT(0, test_union_byte3());
+    ASSERT(8, test_size());
+
+    ASSERT(3, test_byte0());
+    ASSERT(2, test_byte1());
+    ASSERT(0, test_byte2());
+    ASSERT(0, test_byte3());
+
+    ASSERT(3, test_assign1());
+    ASSERT(3, test_assign2());
 
     printf("OK\n");
     return 0;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AST/Type.hpp"
 #include <Util/Align.hpp>
 #include <Scope/Variable.hpp>
 #include <Scope/Function.hpp>
@@ -275,7 +276,7 @@ private:
     void load(Node *node)
     {
         auto type = m_sema.getTypeContext().getType(node->type_id);
-        if (type.kind == TypeKind::ARRAY)
+        if (type.kind == TypeKind::ARRAY || type.kind == TypeKind::STRUCT || type.kind == TypeKind::UNION)
             return;
 
         if (type.size == 1)
@@ -288,6 +289,16 @@ private:
     {
         auto type = m_sema.getTypeContext().getType(node->type_id);
         Assembler::pop(Reg{"rdi"});
+
+        if (type.kind == TypeKind::STRUCT || type.kind == TypeKind::UNION)
+        {
+            for (int i = 0; i < type.size; i++)
+            {
+                Assembler::mov(Mem{"rax", i}, Reg{"r8b"});
+                Assembler::mov(Reg{"r8b"}, Mem{"rdi", i});
+            }
+            return;
+        }
 
         if (type.size == 1)
             Assembler::mov(Reg{"al"}, Mem{"rdi"});
