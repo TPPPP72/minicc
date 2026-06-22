@@ -1,4 +1,3 @@
-#include "AST/Type.hpp"
 #include <Infra/Arena.hpp>
 #include <Scope/Variable.hpp>
 #include <string_view>

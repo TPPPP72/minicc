@@ -264,6 +264,28 @@ int test_tag4()
     return t + y.x;
 }
 
+int test_pointer_access1()
+{
+    struct t
+    {
+        char a;
+    } x;
+    struct t *y = &x;
+    x.a         = 3;
+    return y->a;
+}
+
+int test_pointer_access2()
+{
+    struct t
+    {
+        char a;
+    } x;
+    struct t *y = &x;
+    y->a        = 3;
+    return x.a;
+}
+
 int main()
 {
     ASSERT(1, test_basic1());
@@ -294,6 +316,9 @@ int main()
     ASSERT(16, test_tag2());
     ASSERT(2, test_tag3());
     ASSERT(3, test_tag4());
+
+    ASSERT(3, test_pointer_access1());
+    ASSERT(3, test_pointer_access2());
 
     printf("OK\n");
     return 0;

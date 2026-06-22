@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Lexer/Token.hpp"
 #include <Diag/Diag.hpp>
 #include <Lexer/Lexer.hpp>
 #include <Scope/Function.hpp>
@@ -466,6 +465,13 @@ private:
                 continue;
             }
 
+            if (tok.tryConsumeToken("->"))
+            {
+                node = m_sema.buildDeref(node, tok.prev());
+                node = structRef(node);
+                continue;
+            }
+
             return node;
         }
     }
@@ -616,7 +622,6 @@ private:
             DiagnosticEngine::errorOnTok(lhs->tok, "not a struct");
 
         auto &token = tok.getToken();
-
 
         auto &struct_layout = m_sema.getTypeContext().getStructLayout(lhs->type_id);
         auto &members       = struct_layout.members;
