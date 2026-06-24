@@ -553,28 +553,71 @@ private:
 private:
     TypeId declSpec()
     {
-        if (tok.tryConsumeToken("void"))
+        enum TypeBits
+        {
+            VOID  = 1 << 0,
+            CHAR  = 1 << 2,
+            SHORT = 1 << 4,
+            INT   = 1 << 6,
+            LONG  = 1 << 8,
+            OTHER = 1 << 10,
+        };
+
+        TypeId ty   = m_sema.getTypeContext().getIntTypeId();
+        int counter = 0;
+
+        while (isTypename())
+        {
+            if (tok.isToken("struct") || tok.isToken("union"))
+            {
+                if (counter > 0)
+                    DiagnosticEngine::errorOnTok(tok.getToken(), "invalid type combination");
+
+                if (tok.tryConsumeToken("struct"))
+                    ty = structAndUnionDecl<IsStruct>();
+                else if (tok.tryConsumeToken("union"))
+                    ty = structAndUnionDecl<IsUnion>();
+
+                counter += OTHER;
+                continue;
+            }
+
+            if (tok.tryConsumeToken("void"))
+                counter += VOID;
+            else if (tok.tryConsumeToken("char"))
+                counter += CHAR;
+            else if (tok.tryConsumeToken("short"))
+                counter += SHORT;
+            else if (tok.tryConsumeToken("int"))
+                counter += INT;
+            else if (tok.tryConsumeToken("long"))
+                counter += LONG;
+            else
+                break;
+        }
+
+        if (counter == 0)
+            DiagnosticEngine::errorOnTok(tok.getToken(), "typename expected");
+
+        switch (counter)
+        {
+        case VOID:
             return m_sema.getTypeContext().getVoidTypeId();
-
-        if (tok.tryConsumeToken("char"))
+        case CHAR:
             return m_sema.getTypeContext().getCharTypeId();
-
-        if (tok.tryConsumeToken("short"))
+        case SHORT:
+        case SHORT + INT:
             return m_sema.getTypeContext().getShortTypeId();
-
-        if (tok.tryConsumeToken("int"))
+        case INT:
             return m_sema.getTypeContext().getIntTypeId();
-
-        if (tok.tryConsumeToken("long"))
+        case LONG:
+        case LONG + INT:
             return m_sema.getTypeContext().getLongTypeId();
-
-        if (tok.tryConsumeToken("struct"))
-            return structAndUnionDecl<IsStruct>();
-
-        if (tok.tryConsumeToken("union"))
-            return structAndUnionDecl<IsUnion>();
-
-        DiagnosticEngine::errorOnTok(tok.getToken(), "expected a type specifier");
+        case OTHER:
+            return ty;
+        default:
+            DiagnosticEngine::errorOnTok(tok.getToken(), "invalid type combination");
+        }
     }
 
     TypeId declarator(TypeId base_tid, Token &ident)
