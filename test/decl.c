@@ -30,6 +30,11 @@ int test_combination6()
     int long x;
     return sizeof(x);
 }
+int test_combination7()
+{
+    long long x;
+    return sizeof(x);
+}
 
 int main()
 {
@@ -39,6 +44,7 @@ int main()
     ASSERT(4, test_combination4());
     ASSERT(8, test_combination5());
     ASSERT(8, test_combination6());
+    ASSERT(8, test_combination7());
 
     printf("OK\n");
     return 0;

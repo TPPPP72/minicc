@@ -612,6 +612,8 @@ private:
             return m_sema.getTypeContext().getIntTypeId();
         case LONG:
         case LONG + INT:
+        case LONG + LONG:
+        case LONG + LONG + INT:
             return m_sema.getTypeContext().getLongTypeId();
         case OTHER:
             return ty;
