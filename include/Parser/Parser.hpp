@@ -1,6 +1,5 @@
 #pragma once
 
-#include "AST/Type.hpp"
 #include <Diag/Diag.hpp>
 #include <Lexer/Lexer.hpp>
 #include <Scope/Function.hpp>
@@ -573,6 +572,21 @@ private:
         while (tok.tryConsumeToken("*"))
             current_tid = m_sema.getTypeContext().getPointerTypeId(current_tid);
 
+        if (tok.tryConsumeToken("("))
+        {
+            auto begin_tok = tok;
+
+            Token dummy_ident;
+            declarator(base_tid, dummy_ident);
+            tok.consumeToken(")");
+
+            current_tid = declSuffix(current_tid);
+
+            RAIITokReverter rvt(tok);
+            tok = begin_tok;
+            return declarator(current_tid, ident);
+        }
+
         ident = getIdentToken();
         tok.skipToken();
 
@@ -664,7 +678,7 @@ private:
 
     Token getIdentToken()
     {
-        if (tok.getToken().kind != TokenKind::IDENT && tok.getToken().kind != TokenKind::KEYWORD)
+        if (tok.getToken().kind != TokenKind::IDENT && tok.getToken().getContent() != "main")
             DiagnosticEngine::errorOnTok(tok.getToken(), "expected an identifier");
 
         return tok.getToken();

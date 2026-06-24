@@ -99,11 +99,13 @@ int test_sizeof_12()
     sizeof(x = 2);
     return x;
 }
-int test_sizeof_13(){
+int test_sizeof_13()
+{
     short x;
     return sizeof(x);
 }
-int test_sizeof_14(){
+int test_sizeof_14()
+{
     long x;
     return sizeof(x);
 }
@@ -200,6 +202,52 @@ int test_scope3()
     return x;
 }
 
+int test_nested1()
+{
+    char *x[3];
+    return sizeof(x);
+}
+int test_nested2()
+{
+    char (*x)[3];
+    return sizeof(x);
+}
+int test_nested3()
+{
+    char(x);
+    return sizeof(x);
+}
+int test_nested4()
+{
+    char(x)[3];
+    return sizeof(x);
+}
+int test_nested5()
+{
+    char(x[3])[4];
+    return sizeof(x);
+}
+int test_nested6()
+{
+    char(x[3])[4];
+    return sizeof(x[0]);
+}
+int test_nested7()
+{
+    char *x[3];
+    char y;
+    x[0] = &y;
+    y    = 3;
+    return x[0][0];
+}
+int test_nested8()
+{
+    char x[3];
+    char (*y)[3] = &x;
+    y[0][0]      = 4;
+    return y[0][0];
+}
+
 int main()
 {
     ASSERT(3, test_var1());
@@ -242,6 +290,15 @@ int main()
     ASSERT(2, test_scope1());
     ASSERT(2, test_scope2());
     ASSERT(3, test_scope3());
+
+    ASSERT(24, test_nested1());
+    ASSERT(8, test_nested2());
+    ASSERT(1, test_nested3());
+    ASSERT(3, test_nested4());
+    ASSERT(12, test_nested5());
+    ASSERT(4, test_nested6());
+    ASSERT(3, test_nested7());
+    ASSERT(4, test_nested8());
 
     printf("OK\n");
     return 0;
