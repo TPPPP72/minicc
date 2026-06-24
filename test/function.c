@@ -46,6 +46,8 @@ int sub_long(long a, long b, long c)
     return a - b - c;
 }
 
+int def();
+
 int main()
 {
     ASSERT(3, ret3());

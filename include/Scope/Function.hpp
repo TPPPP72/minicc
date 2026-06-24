@@ -9,4 +9,5 @@ struct Function : Symbol
     std::vector<Variable *> locals;
     Node *body = nullptr;
     int stack_size{};
+    bool is_definition{};
 };

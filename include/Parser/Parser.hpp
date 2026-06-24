@@ -93,6 +93,11 @@ private:
         func->name = ident.getContent();
 
         m_sym_table.insertGlobalIdent(func->name, func);
+
+        func->is_definition = !tok.tryConsumeToken(";");
+        if (!func->is_definition)
+            return;
+
         m_sym_table.enterScope();
 
         for (size_t i = 0; i < func_sign.param_types.size(); ++i)

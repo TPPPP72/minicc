@@ -383,6 +383,8 @@ private:
         {
             if (auto func = dynamic_cast<Function *>(sym))
             {
+                if (!func->is_definition)
+                    continue;
                 Assembler::globl(func->name);
                 Assembler::directive("text");
                 Assembler::label(func->name);
