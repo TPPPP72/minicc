@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AST/Type.hpp"
 #include <Diag/Diag.hpp>
 #include <Lexer/Lexer.hpp>
 #include <Scope/Function.hpp>
@@ -28,7 +29,7 @@ public:
     }
 
 private:
-    template<typename T>
+    template <typename T>
     TypeId structAndUnionDecl()
     {
         std::string_view tag;
@@ -126,6 +127,9 @@ private:
             Token ident;
 
             TypeId final_tid = declarator(basety, ident);
+            auto type        = m_sema.getTypeContext().getType(final_tid);
+            if (type.kind == TypeKind::VOID)
+                DiagnosticEngine::errorOnTok(ident, "variable declared void");
 
             auto var = newVar<T>(ident.getContent(), final_tid);
 
@@ -254,12 +258,12 @@ private:
 
     Node *expr()
     {
-        auto node =  assign();
+        auto node = assign();
 
         while (tok.tryConsumeToken(","))
         {
-            auto op_tok = tok.prev();
-            auto rhs    = assign();
+            auto op_tok   = tok.prev();
+            auto rhs      = assign();
             node          = m_arena.alloc<BinaryNode>(NodeKind::COMMA, node, rhs, op_tok);
             node->type_id = rhs->type_id;
         }
@@ -549,6 +553,9 @@ private:
 private:
     TypeId declSpec()
     {
+        if (tok.tryConsumeToken("void"))
+            return m_sema.getTypeContext().getVoidTypeId();
+
         if (tok.tryConsumeToken("char"))
             return m_sema.getTypeContext().getCharTypeId();
 
@@ -561,10 +568,10 @@ private:
         if (tok.tryConsumeToken("long"))
             return m_sema.getTypeContext().getLongTypeId();
 
-        if(tok.tryConsumeToken("struct"))
+        if (tok.tryConsumeToken("struct"))
             return structAndUnionDecl<IsStruct>();
 
-        if(tok.tryConsumeToken("union"))
+        if (tok.tryConsumeToken("union"))
             return structAndUnionDecl<IsUnion>();
 
         DiagnosticEngine::errorOnTok(tok.getToken(), "expected a type specifier");
@@ -702,8 +709,8 @@ private:
 
     bool isTypename()
     {
-        auto token = tok.getToken().getContent();
-        return (token == "char" || token == "short" || token == "int" || token == "long" || token == "struct" || token == "union");
+        std::array<std::string_view, 7> typenames{"void"sv, "char"sv, "short"sv, "int"sv, "long"sv, "struct"sv, "union"sv};
+        return std::find(typenames.begin(), typenames.end(), tok.getToken().getContent()) != typenames.end();
     }
 
     bool isFunction()
@@ -740,12 +747,12 @@ private:
 
     std::string_view newUniqueName()
     {
-        static int id = 0;
+        static int id        = 0;
         std::string name_str = ".L.." + std::to_string(id++);
-        
+
         auto buf = m_arena.alloc<char>(name_str.size());
         std::memcpy(buf, name_str.data(), name_str.size());
-        
+
         return std::string_view(buf, name_str.size());
     }
 

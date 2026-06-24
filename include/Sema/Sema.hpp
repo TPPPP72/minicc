@@ -110,7 +110,11 @@ public:
         Type l = m_ty_ctx.getType(lhs->type_id);
 
         if (l.base_type_id == -1)
-            DiagnosticEngine::errorOnTok(tok, "invalid operands");
+            DiagnosticEngine::errorOnTok(tok, "invalid pointer");
+
+        Type l_base = m_ty_ctx.getType(l.base_type_id);
+        if (l_base.kind == TypeKind::VOID)
+            DiagnosticEngine::errorOnTok(tok, "derefencing a void pointer");
 
         auto node     = m_arena.alloc<UnaryNode>(NodeKind::DEREF, lhs, tok);
         node->type_id = m_ty_ctx.getType(lhs->type_id).base_type_id;

@@ -300,6 +300,8 @@ int main()
     ASSERT(3, test_nested7());
     ASSERT(4, test_nested8());
 
+    void *x;
+
     printf("OK\n");
     return 0;
 }
