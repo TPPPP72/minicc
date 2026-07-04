@@ -296,7 +296,7 @@ private:
 
         while (tok.tryConsumeToken(","))
         {
-            auto op_tok   = tok.prev();
+            auto &op_tok  = tok.prev();
             auto rhs      = assign();
             node          = m_arena.alloc<BinaryNode>(NodeKind::COMMA, node, rhs, op_tok);
             node->type_id = rhs->type_id;
@@ -311,7 +311,7 @@ private:
 
         if (tok.tryConsumeToken("="))
         {
-            auto op_tok          = tok.prev();
+            auto &op_tok         = tok.prev();
             auto rhs             = assign();
             auto assign_node     = m_arena.alloc<BinaryNode>(NodeKind::ASSIGN, node, rhs, op_tok);
             assign_node->type_id = node->type_id;
@@ -329,7 +329,7 @@ private:
         {
             if (tok.tryConsumeToken("=="))
             {
-                auto op_tok   = tok.prev();
+                auto &op_tok  = tok.prev();
                 auto rhs      = relational();
                 node          = m_arena.alloc<BinaryNode>(NodeKind::EQ, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
@@ -338,7 +338,7 @@ private:
 
             if (tok.tryConsumeToken("!="))
             {
-                auto op_tok   = tok.prev();
+                auto &op_tok  = tok.prev();
                 auto rhs      = relational();
                 node          = m_arena.alloc<BinaryNode>(NodeKind::NE, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
@@ -357,7 +357,7 @@ private:
         {
             if (tok.tryConsumeToken("<="))
             {
-                auto op_tok   = tok.prev();
+                auto &op_tok  = tok.prev();
                 auto rhs      = add();
                 node          = m_arena.alloc<BinaryNode>(NodeKind::LE, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
@@ -366,7 +366,7 @@ private:
 
             if (tok.tryConsumeToken("<"))
             {
-                auto op_tok   = tok.prev();
+                auto &op_tok  = tok.prev();
                 auto rhs      = add();
                 node          = m_arena.alloc<BinaryNode>(NodeKind::LT, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
@@ -375,7 +375,7 @@ private:
 
             if (tok.tryConsumeToken(">="))
             {
-                auto op_tok   = tok.prev();
+                auto &op_tok  = tok.prev();
                 auto rhs      = add();
                 node          = m_arena.alloc<BinaryNode>(NodeKind::GE, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
@@ -384,7 +384,7 @@ private:
 
             if (tok.tryConsumeToken(">"))
             {
-                auto op_tok   = tok.prev();
+                auto &op_tok  = tok.prev();
                 auto rhs      = add();
                 node          = m_arena.alloc<BinaryNode>(NodeKind::GT, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
@@ -403,15 +403,15 @@ private:
         {
             if (tok.tryConsumeToken("+"))
             {
-                auto op_tok = tok.prev();
-                node        = m_sema.buildAdd(node, mul(), op_tok);
+                auto &op_tok = tok.prev();
+                node         = m_sema.buildAdd(node, mul(), op_tok);
                 continue;
             }
 
             if (tok.tryConsumeToken("-"))
             {
-                auto op_tok = tok.prev();
-                node        = m_sema.buildSub(node, mul(), op_tok);
+                auto &op_tok = tok.prev();
+                node         = m_sema.buildSub(node, mul(), op_tok);
                 continue;
             }
 
@@ -427,7 +427,7 @@ private:
         {
             if (tok.tryConsumeToken("*"))
             {
-                auto op_tok   = tok.prev();
+                auto &op_tok  = tok.prev();
                 auto rhs      = unary();
                 TypeId ty     = node->type_id;
                 node          = m_arena.alloc<BinaryNode>(NodeKind::MUL, node, rhs, op_tok);
@@ -437,7 +437,7 @@ private:
 
             if (tok.tryConsumeToken("/"))
             {
-                auto op_tok   = tok.prev();
+                auto &op_tok  = tok.prev();
                 auto rhs      = unary();
                 TypeId ty     = node->type_id;
                 node          = m_arena.alloc<BinaryNode>(NodeKind::DIV, node, rhs, op_tok);
@@ -447,7 +447,7 @@ private:
 
             if (tok.tryConsumeToken("%"))
             {
-                auto op_tok   = tok.prev();
+                auto &op_tok  = tok.prev();
                 auto rhs      = unary();
                 TypeId ty     = node->type_id;
                 node          = m_arena.alloc<BinaryNode>(NodeKind::MOD, node, rhs, op_tok);
@@ -466,7 +466,7 @@ private:
 
         if (tok.tryConsumeToken("-"))
         {
-            auto op_tok   = tok.prev();
+            auto &op_tok  = tok.prev();
             auto node     = m_arena.alloc<UnaryNode>(NodeKind::NEG, unary(), op_tok);
             node->type_id = node->lhs->type_id;
             return node;
@@ -474,21 +474,41 @@ private:
 
         if (tok.tryConsumeToken("*"))
         {
-            auto op_tok = tok.prev();
+            auto &op_tok = tok.prev();
             return m_sema.buildDeref(unary(), op_tok);
         }
 
         if (tok.tryConsumeToken("&"))
         {
-            auto op_tok = tok.prev();
+            auto &op_tok = tok.prev();
             return m_sema.buildAddr(unary(), op_tok);
         }
 
         if (tok.tryConsumeToken("sizeof"))
         {
-            auto op_tok       = tok.prev();
-            auto node         = unary();
-            auto size         = m_sema.getTypeSize(node->type_id);
+            auto &op_tok = tok.prev();
+            TypeId final_tid;
+
+            bool is_type_sizeof = false;
+            {
+                RAIITokReverter rvt(tok);
+                if (tok.tryConsumeToken("(") && isTypename())
+                    is_type_sizeof = true;
+            }
+
+            if (is_type_sizeof)
+            {
+                tok.consumeToken("(");
+                auto basety = declSpec();
+                final_tid   = abstractDeclarator(basety);
+                tok.consumeToken(")");
+            }
+            else
+            {
+                auto node = unary();
+                final_tid = node->type_id;
+            }
+            auto size         = m_sema.getTypeSize(final_tid);
             auto num_node     = m_arena.alloc<NumNode>(size, op_tok);
             num_node->type_id = m_sema.getTypeContext().getIntTypeId();
             return num_node;
@@ -505,8 +525,8 @@ private:
         {
             if (tok.tryConsumeToken("["))
             {
-                auto op_tok = tok.prev();
-                auto idx    = expr();
+                auto &op_tok = tok.prev();
+                auto idx     = expr();
                 tok.consumeToken("]");
 
                 auto offset = m_sema.buildAdd(node, idx, op_tok);
@@ -703,6 +723,32 @@ private:
         return current_tid;
     }
 
+    TypeId abstractDeclarator(TypeId base_tid)
+    {
+        TypeId current_tid = base_tid;
+
+        while (tok.tryConsumeToken("*"))
+            current_tid = m_sema.getTypeContext().getPointerTypeId(current_tid);
+
+        if (tok.tryConsumeToken("("))
+        {
+            auto begin_tok = tok;
+
+            abstractDeclarator(base_tid);
+            tok.consumeToken(")");
+
+            current_tid = declSuffix(current_tid);
+
+            RAIITokReverter rvt(tok);
+            tok = begin_tok;
+            return abstractDeclarator(current_tid);
+        }
+
+        current_tid = declSuffix(current_tid);
+
+        return current_tid;
+    }
+
     TypeId declFuncParams(TypeId ret_tid)
     {
         std::vector<TypeId> param_types;
@@ -818,7 +864,8 @@ private:
         return symbol && symbol->sym_type == SymbolType::Typedef;
     }
 
-    bool isAttr(){
+    bool isAttr()
+    {
         return tok.isToken("typedef");
     }
 
