@@ -10,4 +10,7 @@ struct Function : Symbol
     Node *body = nullptr;
     int stack_size{};
     bool is_definition{};
+    bool is_local{};
+
+    Function() : Symbol(SymbolType::Function) {}
 };

@@ -30,8 +30,19 @@ public:
     bool insertIdent(std::string_view name, Symbol *sym)
     {
         auto &idents = m_current_scope->idents;
-        if (idents.find(name) != idents.end())
+        auto it = idents.find(name);
+        
+        if (it != idents.end())
+        {
+            if (it->second->sym_type == SymbolType::Typedef && sym->sym_type != SymbolType::Typedef)
+            {
+                idents[name] = sym; 
+                return true; 
+            }
+
             return false;
+        }
+        
         idents[name] = sym;
         return true;
     }
@@ -89,9 +100,7 @@ public:
     {
         std::vector<Symbol *> globals;
         for (const auto &[name, sym] : m_global_scope->idents)
-        {
             globals.push_back(sym);
-        }
         return globals;
     }
 

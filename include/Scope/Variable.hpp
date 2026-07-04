@@ -10,4 +10,7 @@ struct Variable : Symbol
     int int_init_val{};
     bool is_string_literal{};
     bool has_int_init{};
+    bool is_local{};
+
+    Variable() : Symbol(SymbolType::Variable) {}
 };

@@ -1,10 +1,10 @@
 #pragma once
 
-#include "AST/Type.hpp"
 #include <Diag/Diag.hpp>
 #include <Lexer/Lexer.hpp>
 #include <Scope/Function.hpp>
 #include <Scope/SymbolTable.hpp>
+#include <Scope/Typedef.hpp>
 #include <Scope/Variable.hpp>
 #include <Sema/Sema.hpp>
 #include <Util/Tags.hpp>
@@ -20,10 +20,19 @@ public:
     {
         while (tok.getToken().kind != TokenKind::ENDF)
         {
-            if (isFunction())
+            if (isAttr())
+            {
+                if (tok.tryConsumeToken("typedef"))
+                    TypedefDecl();
+            }
+            else if (isFunction())
+            {
                 funcDecl();
-            else
+            }
+            else if (isTypename())
+            {
                 varDecl<IsGlobal>();
+            }
         }
         return m_sym_table.getGlobalSymbols();
     }
@@ -160,11 +169,41 @@ private:
         return node;
     }
 
+    void TypedefDecl()
+    {
+        auto basety = declSpec();
+
+        int count = 0;
+
+        while (!tok.tryConsumeToken(";"))
+        {
+            if (count++ > 0)
+                tok.consumeToken(",");
+
+            Token ident;
+            TypeId final_tid = declarator(basety, ident);
+
+            auto typedef_sym     = m_arena.alloc<Typedef>();
+            typedef_sym->name    = ident.getContent();
+            typedef_sym->type_id = final_tid;
+            m_sym_table.insertIdent(ident.getContent(), typedef_sym);
+        }
+    }
+
 private:
     Node *stmt()
     {
         if (isTypename())
+        {
             return varDecl<IsLocal>();
+        }
+        else if (isAttr())
+        {
+            auto &token = tok.getToken();
+            if (tok.tryConsumeToken("typedef"))
+                TypedefDecl();
+            return m_arena.alloc<BlockNode>(token);
+        }
 
         if (tok.tryConsumeToken("return"))
         {
@@ -235,12 +274,7 @@ private:
         m_sym_table.enterScope();
 
         while (!tok.tryConsumeToken("}"))
-        {
-            if (tok.getToken().getContent() == "int")
-                node->stmts.push_back(varDecl<IsLocal>());
-            else
-                node->stmts.push_back(stmt());
-        }
+            node->stmts.push_back(stmt());
 
         m_sym_table.leaveScope();
         return node;
@@ -568,7 +602,9 @@ private:
 
         while (isTypename())
         {
-            if (tok.isToken("struct") || tok.isToken("union"))
+            auto &token = tok.getToken();
+
+            if (token.getContent() == "struct" || token.getContent() == "union")
             {
                 if (counter > 0)
                     DiagnosticEngine::errorOnTok(tok.getToken(), "invalid type combination");
@@ -580,6 +616,21 @@ private:
 
                 counter += OTHER;
                 continue;
+            }
+
+            if (token.kind == TokenKind::IDENT)
+            {
+                auto symbol = m_sym_table.lookupIdent(token.getContent());
+                if (symbol && symbol->sym_type == SymbolType::Typedef)
+                {
+                    if (counter > 0)
+                        break;
+
+                    ty = symbol->type_id;
+                    counter += OTHER;
+                    tok.skipToken();
+                    break;
+                }
             }
 
             if (tok.tryConsumeToken("void"))
@@ -755,7 +806,20 @@ private:
     bool isTypename()
     {
         std::array<std::string_view, 7> typenames{"void"sv, "char"sv, "short"sv, "int"sv, "long"sv, "struct"sv, "union"sv};
-        return std::find(typenames.begin(), typenames.end(), tok.getToken().getContent()) != typenames.end();
+        auto it = std::find(typenames.begin(), typenames.end(), tok.getToken().getContent());
+        if (it != typenames.end())
+            return true;
+
+        auto &token = tok.getToken();
+        if (token.kind != TokenKind::IDENT)
+            return false;
+
+        auto symbol = m_sym_table.lookupIdent(token.getContent());
+        return symbol && symbol->sym_type == SymbolType::Typedef;
+    }
+
+    bool isAttr(){
+        return tok.isToken("typedef");
     }
 
     bool isFunction()
