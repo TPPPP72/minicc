@@ -22,14 +22,24 @@ public:
         return (*m_tokens)[m_index];
     }
 
-    const Token &prev() const noexcept
+    const Token &getPrev() const noexcept
     {
         return (*m_tokens)[m_index - 1];
     }
 
-    const Token &next() const noexcept
+    const Token &getNext() const noexcept
     {
         return (*m_tokens)[m_index + 1];
+    }
+
+    const Token &lookAhead(unsigned n) const noexcept
+    {
+        return (*m_tokens)[m_index + n];
+    }
+
+    const Token &lookBack(unsigned n) const noexcept
+    {
+        return (*m_tokens)[m_index - n];
     }
 
     void skipToken()

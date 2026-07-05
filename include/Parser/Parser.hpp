@@ -165,7 +165,7 @@ private:
             }
         }
 
-        node->tok = tok.prev();
+        node->tok = tok.getPrev();
         return node;
     }
 
@@ -207,7 +207,7 @@ private:
 
         if (tok.tryConsumeToken("return"))
         {
-            auto kw_tok = tok.prev();
+            auto kw_tok = tok.getPrev();
             auto node   = m_arena.alloc<ReturnNode>(expr(), kw_tok);
             node->tok   = kw_tok;
             tok.consumeToken(";");
@@ -216,7 +216,7 @@ private:
 
         if (tok.tryConsumeToken("if"))
         {
-            auto kw_tok = tok.prev();
+            auto kw_tok = tok.getPrev();
             auto node   = m_arena.alloc<IfNode>(kw_tok);
             node->tok   = kw_tok;
             tok.consumeToken("(");
@@ -230,7 +230,7 @@ private:
 
         if (tok.tryConsumeToken("for"))
         {
-            auto kw_tok = tok.prev();
+            auto kw_tok = tok.getPrev();
             auto node   = m_arena.alloc<ForNode>(kw_tok);
             node->tok   = kw_tok;
             tok.consumeToken("(");
@@ -251,7 +251,7 @@ private:
 
         if (tok.tryConsumeToken("while"))
         {
-            auto kw_tok = tok.prev();
+            auto kw_tok = tok.getPrev();
             auto node   = m_arena.alloc<ForNode>(kw_tok);
             node->tok   = kw_tok;
             tok.consumeToken("(");
@@ -283,7 +283,7 @@ private:
     Node *exprStmt()
     {
         if (tok.tryConsumeToken(";"))
-            return m_arena.alloc<BlockNode>(tok.prev());
+            return m_arena.alloc<BlockNode>(tok.getPrev());
 
         auto node = m_arena.alloc<ExprStmtNode>(expr(), tok.getToken());
         tok.consumeToken(";");
@@ -296,7 +296,7 @@ private:
 
         while (tok.tryConsumeToken(","))
         {
-            auto &op_tok  = tok.prev();
+            auto &op_tok  = tok.getPrev();
             auto rhs      = assign();
             node          = m_arena.alloc<BinaryNode>(NodeKind::COMMA, node, rhs, op_tok);
             node->type_id = rhs->type_id;
@@ -311,7 +311,7 @@ private:
 
         if (tok.tryConsumeToken("="))
         {
-            auto &op_tok         = tok.prev();
+            auto &op_tok         = tok.getPrev();
             auto rhs             = assign();
             auto assign_node     = m_arena.alloc<BinaryNode>(NodeKind::ASSIGN, node, rhs, op_tok);
             assign_node->type_id = node->type_id;
@@ -329,7 +329,7 @@ private:
         {
             if (tok.tryConsumeToken("=="))
             {
-                auto &op_tok  = tok.prev();
+                auto &op_tok  = tok.getPrev();
                 auto rhs      = relational();
                 node          = m_arena.alloc<BinaryNode>(NodeKind::EQ, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
@@ -338,7 +338,7 @@ private:
 
             if (tok.tryConsumeToken("!="))
             {
-                auto &op_tok  = tok.prev();
+                auto &op_tok  = tok.getPrev();
                 auto rhs      = relational();
                 node          = m_arena.alloc<BinaryNode>(NodeKind::NE, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
@@ -357,7 +357,7 @@ private:
         {
             if (tok.tryConsumeToken("<="))
             {
-                auto &op_tok  = tok.prev();
+                auto &op_tok  = tok.getPrev();
                 auto rhs      = add();
                 node          = m_arena.alloc<BinaryNode>(NodeKind::LE, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
@@ -366,7 +366,7 @@ private:
 
             if (tok.tryConsumeToken("<"))
             {
-                auto &op_tok  = tok.prev();
+                auto &op_tok  = tok.getPrev();
                 auto rhs      = add();
                 node          = m_arena.alloc<BinaryNode>(NodeKind::LT, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
@@ -375,7 +375,7 @@ private:
 
             if (tok.tryConsumeToken(">="))
             {
-                auto &op_tok  = tok.prev();
+                auto &op_tok  = tok.getPrev();
                 auto rhs      = add();
                 node          = m_arena.alloc<BinaryNode>(NodeKind::GE, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
@@ -384,7 +384,7 @@ private:
 
             if (tok.tryConsumeToken(">"))
             {
-                auto &op_tok  = tok.prev();
+                auto &op_tok  = tok.getPrev();
                 auto rhs      = add();
                 node          = m_arena.alloc<BinaryNode>(NodeKind::GT, node, rhs, op_tok);
                 node->type_id = m_sema.getTypeContext().getIntTypeId();
@@ -403,14 +403,14 @@ private:
         {
             if (tok.tryConsumeToken("+"))
             {
-                auto &op_tok = tok.prev();
+                auto &op_tok = tok.getPrev();
                 node         = m_sema.buildAdd(node, mul(), op_tok);
                 continue;
             }
 
             if (tok.tryConsumeToken("-"))
             {
-                auto &op_tok = tok.prev();
+                auto &op_tok = tok.getPrev();
                 node         = m_sema.buildSub(node, mul(), op_tok);
                 continue;
             }
@@ -427,7 +427,7 @@ private:
         {
             if (tok.tryConsumeToken("*"))
             {
-                auto &op_tok  = tok.prev();
+                auto &op_tok  = tok.getPrev();
                 auto rhs      = unary();
                 TypeId ty     = node->type_id;
                 node          = m_arena.alloc<BinaryNode>(NodeKind::MUL, node, rhs, op_tok);
@@ -437,7 +437,7 @@ private:
 
             if (tok.tryConsumeToken("/"))
             {
-                auto &op_tok  = tok.prev();
+                auto &op_tok  = tok.getPrev();
                 auto rhs      = unary();
                 TypeId ty     = node->type_id;
                 node          = m_arena.alloc<BinaryNode>(NodeKind::DIV, node, rhs, op_tok);
@@ -447,7 +447,7 @@ private:
 
             if (tok.tryConsumeToken("%"))
             {
-                auto &op_tok  = tok.prev();
+                auto &op_tok  = tok.getPrev();
                 auto rhs      = unary();
                 TypeId ty     = node->type_id;
                 node          = m_arena.alloc<BinaryNode>(NodeKind::MOD, node, rhs, op_tok);
@@ -466,7 +466,7 @@ private:
 
         if (tok.tryConsumeToken("-"))
         {
-            auto &op_tok  = tok.prev();
+            auto &op_tok  = tok.getPrev();
             auto node     = m_arena.alloc<UnaryNode>(NodeKind::NEG, unary(), op_tok);
             node->type_id = node->lhs->type_id;
             return node;
@@ -474,29 +474,22 @@ private:
 
         if (tok.tryConsumeToken("*"))
         {
-            auto &op_tok = tok.prev();
+            auto &op_tok = tok.getPrev();
             return m_sema.buildDeref(unary(), op_tok);
         }
 
         if (tok.tryConsumeToken("&"))
         {
-            auto &op_tok = tok.prev();
+            auto &op_tok = tok.getPrev();
             return m_sema.buildAddr(unary(), op_tok);
         }
 
         if (tok.tryConsumeToken("sizeof"))
         {
-            auto &op_tok = tok.prev();
+            auto &op_tok = tok.getPrev();
             TypeId final_tid;
 
-            bool is_type_sizeof = false;
-            {
-                RAIITokReverter rvt(tok);
-                if (tok.tryConsumeToken("(") && isTypename())
-                    is_type_sizeof = true;
-            }
-
-            if (is_type_sizeof)
+            if (tok.isToken("(") && isTypename(tok.lookAhead(1)))
             {
                 tok.consumeToken("(");
                 auto basety = declSpec();
@@ -525,7 +518,7 @@ private:
         {
             if (tok.tryConsumeToken("["))
             {
-                auto &op_tok = tok.prev();
+                auto &op_tok = tok.getPrev();
                 auto idx     = expr();
                 tok.consumeToken("]");
 
@@ -542,7 +535,7 @@ private:
 
             if (tok.tryConsumeToken("->"))
             {
-                node = m_sema.buildDeref(node, tok.prev());
+                node = m_sema.buildDeref(node, tok.getPrev());
                 node = structRef(node);
                 continue;
             }
@@ -849,19 +842,23 @@ private:
         return value;
     }
 
-    bool isTypename()
+    bool isTypename(const Token &token)
     {
         std::array<std::string_view, 7> typenames{"void"sv, "char"sv, "short"sv, "int"sv, "long"sv, "struct"sv, "union"sv};
-        auto it = std::find(typenames.begin(), typenames.end(), tok.getToken().getContent());
+        auto it = std::find(typenames.begin(), typenames.end(), token.getContent());
         if (it != typenames.end())
             return true;
 
-        auto &token = tok.getToken();
         if (token.kind != TokenKind::IDENT)
             return false;
 
         auto symbol = m_sym_table.lookupIdent(token.getContent());
         return symbol && symbol->sym_type == SymbolType::Typedef;
+    }
+
+    bool isTypename()
+    {
+        return isTypename(tok.getToken());
     }
 
     bool isAttr()
