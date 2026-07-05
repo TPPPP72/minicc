@@ -32,7 +32,8 @@ public:
         if (isInteger(l.kind) && isInteger(r.kind))
         {
             Node *node    = m_arena.alloc<BinaryNode>(NodeKind::ADD, lhs, rhs, tok);
-            node->type_id = m_ty_ctx.getIntTypeId();
+            usualArithConv(lhs, rhs);
+            node->type_id = lhs->type_id;
             return node;
         }
 
@@ -68,9 +69,10 @@ public:
 
         if (isInteger(l.kind) && isInteger(r.kind))
         {
-            auto result     = m_arena.alloc<BinaryNode>(NodeKind::SUB, lhs, rhs, tok);
-            result->type_id = m_ty_ctx.getIntTypeId();
-            return result;
+            auto node     = m_arena.alloc<BinaryNode>(NodeKind::SUB, lhs, rhs, tok);
+            usualArithConv(lhs, rhs);
+            node->type_id = lhs->type_id;
+            return node;
         }
 
         if (l.kind == TypeKind::PTR && r.kind == TypeKind::PTR)
@@ -97,6 +99,21 @@ public:
         auto node       = m_arena.alloc<BinaryNode>(NodeKind::SUB, lhs, factor, tok);
         node->type_id   = lhs_tid;
         return node;
+    }
+
+    Node *buildMul(Node *lhs, Node *rhs, const Token &tok)
+    {
+        return buildCommonBinary(NodeKind::MUL, lhs, rhs, tok);
+    }
+
+    Node *buildDiv(Node *lhs, Node *rhs, const Token &tok)
+    {
+        return buildCommonBinary(NodeKind::DIV, lhs, rhs, tok);
+    }
+
+    Node *buildMod(Node *lhs, Node *rhs, const Token &tok)
+    {
+        return buildCommonBinary(NodeKind::MOD, lhs, rhs, tok);
     }
 
     Node *buildAddr(Node *lhs, const Token &tok)
@@ -135,6 +152,23 @@ public:
     }
 
 private:
+    Node *buildCommonBinary(NodeKind kind, Node *lhs, Node *rhs, const Token &tok)
+    {
+        Type l = m_ty_ctx.getType(lhs->type_id);
+        Type r = m_ty_ctx.getType(rhs->type_id);
+
+        if (isInteger(l.kind) && isInteger(r.kind))
+        {
+            Node *node = m_arena.alloc<BinaryNode>(kind, lhs, rhs, tok);
+            usualArithConv(lhs, rhs);
+            node->type_id = lhs->type_id;
+            return node;
+        }
+
+        DiagnosticEngine::errorOnTok(tok, "invalid operands");
+    }
+
+private:
     TypeId arrayDecay(TypeId tid)
     {
         auto type = m_ty_ctx.getType(tid);
@@ -143,6 +177,32 @@ private:
             return m_ty_ctx.getPointerTypeId(type.base_type_id);
 
         return tid;
+    }
+
+    TypeId getCommonTypeId(Node *lhs, Node *rhs)
+    {
+        Type l = m_ty_ctx.getType(lhs->type_id);
+        Type r = m_ty_ctx.getType(rhs->type_id);
+
+        if (l.size == 8 || r.size == 8)
+            return m_ty_ctx.getLongTypeId();
+        else
+            return m_ty_ctx.getIntTypeId();
+    }
+
+    void usualArithConv(Node *&lhs, Node *&rhs)
+    {
+        auto common_tid = getCommonTypeId(lhs, rhs);
+        Type common_type = m_ty_ctx.getType(common_tid);
+
+        Type l = m_ty_ctx.getType(lhs->type_id);
+        Type r = m_ty_ctx.getType(rhs->type_id);
+
+        if (l.size < common_type.size)
+            lhs = m_arena.alloc<TypeCastNode>(lhs, common_tid);
+
+        if (r.size < common_type.size)
+            rhs = m_arena.alloc<TypeCastNode>(rhs, common_tid);
     }
 
     bool isInteger(TypeKind kind)

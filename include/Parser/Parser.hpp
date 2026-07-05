@@ -427,31 +427,22 @@ private:
         {
             if (tok.tryConsumeToken("*"))
             {
-                auto &op_tok  = tok.getPrev();
-                auto rhs      = cast();
-                TypeId ty     = node->type_id;
-                node          = m_arena.alloc<BinaryNode>(NodeKind::MUL, node, rhs, op_tok);
-                node->type_id = ty;
+                auto &op_tok = tok.getPrev();
+                node         = m_sema.buildMul(node, cast(), op_tok);
                 continue;
             }
 
             if (tok.tryConsumeToken("/"))
             {
-                auto &op_tok  = tok.getPrev();
-                auto rhs      = cast();
-                TypeId ty     = node->type_id;
-                node          = m_arena.alloc<BinaryNode>(NodeKind::DIV, node, rhs, op_tok);
-                node->type_id = ty;
+                auto &op_tok = tok.getPrev();
+                node         = m_sema.buildDiv(node, cast(), op_tok);
                 continue;
             }
 
             if (tok.tryConsumeToken("%"))
             {
-                auto &op_tok  = tok.getPrev();
-                auto rhs      = cast();
-                TypeId ty     = node->type_id;
-                node          = m_arena.alloc<BinaryNode>(NodeKind::MOD, node, rhs, op_tok);
-                node->type_id = ty;
+                auto &op_tok = tok.getPrev();
+                node         = m_sema.buildMod(node, cast(), op_tok);
                 continue;
             }
 

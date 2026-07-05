@@ -316,10 +316,10 @@ private:
         switch (type.size)
         {
         case 1:
-            Assembler::movsbq(Mem{"rax"}, Reg{"rax"});
+            Assembler::movsbl(Mem{"rax"}, Reg{"eax"});
             return;
         case 2:
-            Assembler::movswq(Mem{"rax"}, Reg{"rax"});
+            Assembler::movswl(Mem{"rax"}, Reg{"eax"});
             return;
         case 4:
             Assembler::movsxd(Mem{"rax"}, Reg{"rax"});
