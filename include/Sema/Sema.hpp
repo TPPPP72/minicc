@@ -46,12 +46,15 @@ public:
             std::swap(lhs_tid, rhs_tid);
         }
 
+        if (r.size < 8)
+            rhs = m_arena.alloc<TypeCastNode>(rhs, m_ty_ctx.getLongTypeId(), tok);
+
         auto scale      = m_arena.alloc<NumNode>(m_ty_ctx.getType(l.base_type_id).size, tok);
-        scale->type_id  = m_ty_ctx.getIntTypeId();
+        scale->type_id  = m_ty_ctx.getLongTypeId();
         auto factor     = m_arena.alloc<BinaryNode>(NodeKind::MUL, rhs, scale, tok);
-        factor->type_id = m_ty_ctx.getIntTypeId();
+        factor->type_id = m_ty_ctx.getLongTypeId();
         auto node       = m_arena.alloc<BinaryNode>(NodeKind::ADD, lhs, factor, tok);
-        node->type_id   = lhs->type_id;
+        node->type_id   = lhs_tid;
         return node;
     }
 
@@ -73,23 +76,26 @@ public:
         if (l.kind == TypeKind::PTR && r.kind == TypeKind::PTR)
         {
             auto node         = m_arena.alloc<BinaryNode>(NodeKind::SUB, lhs, rhs, tok);
-            node->type_id     = lhs_tid;
+            node->type_id     = m_ty_ctx.getLongTypeId();
             auto scale        = m_arena.alloc<NumNode>(m_ty_ctx.getType(l.base_type_id).size, tok);
-            scale->type_id    = m_ty_ctx.getIntTypeId();
+            scale->type_id    = m_ty_ctx.getLongTypeId();
             auto div_node     = m_arena.alloc<BinaryNode>(NodeKind::DIV, node, scale, tok);
-            div_node->type_id = m_ty_ctx.getIntTypeId();
+            div_node->type_id = m_ty_ctx.getLongTypeId();
             return div_node;
         }
 
         if (l.kind == TypeKind::INT && r.kind == TypeKind::PTR)
             DiagnosticEngine::errorOnTok(tok, "invalid operands");
 
+        if (r.size < 8)
+            rhs = m_arena.alloc<TypeCastNode>(rhs, m_ty_ctx.getLongTypeId(), tok);
+
         auto scale      = m_arena.alloc<NumNode>(m_ty_ctx.getType(l.base_type_id).size, tok);
-        scale->type_id  = m_ty_ctx.getIntTypeId();
+        scale->type_id  = m_ty_ctx.getLongTypeId();
         auto factor     = m_arena.alloc<BinaryNode>(NodeKind::MUL, rhs, scale, tok);
-        factor->type_id = m_ty_ctx.getIntTypeId();
+        factor->type_id = m_ty_ctx.getLongTypeId();
         auto node       = m_arena.alloc<BinaryNode>(NodeKind::SUB, lhs, factor, tok);
-        node->type_id   = lhs->type_id;
+        node->type_id   = lhs_tid;
         return node;
     }
 
@@ -107,6 +113,7 @@ public:
 
     Node *buildDeref(Node *lhs, const Token &tok)
     {
+        TypeId lhs_tid = arrayDecay(lhs->type_id);
         Type l = m_ty_ctx.getType(lhs->type_id);
 
         if (l.base_type_id == -1)
@@ -117,7 +124,7 @@ public:
             DiagnosticEngine::errorOnTok(tok, "derefencing a void pointer");
 
         auto node     = m_arena.alloc<UnaryNode>(NodeKind::DEREF, lhs, tok);
-        node->type_id = m_ty_ctx.getType(lhs->type_id).base_type_id;
+        node->type_id = l.base_type_id;
         return node;
     }
 

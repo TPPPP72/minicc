@@ -32,6 +32,7 @@ enum class NodeKind
     ADDR,
     DEREF,
     FUNCALL,
+    TYPECAST,
     MEMBER
 };
 
@@ -42,6 +43,7 @@ struct Node
     TypeId type_id{};
 
     Node(NodeKind k, const Token &t) : tok(t), kind(k), type_id(0) {}
+    Node(NodeKind k, TypeId tid, const Token &t) : tok(t), kind(k), type_id(tid) {}
     virtual ~Node() = default;
 };
 
@@ -148,4 +150,13 @@ struct FuncCallNode : Node
 
     std::string_view func_name;
     std::vector<Node *> args;
+};
+
+struct TypeCastNode : Node
+{
+    TypeCastNode(Node *l, TypeId to, const Token &t) : Node(NodeKind::TYPECAST, to, t), expr(l) {}
+
+    TypeCastNode(Node *l, TypeId to) : Node(NodeKind::TYPECAST, to, {}), expr(l) {}
+
+    Node *expr;
 };

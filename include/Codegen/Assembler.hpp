@@ -62,6 +62,10 @@ public:
 
     static std::ostream &stream() { return out_.is_open() ? out_ : std::cout; }
 
+    static void cqo() { stream() << "  cqo\n"; }
+    static void cdq() { stream() << "  cdq\n"; }
+    static void ret() { stream() << "  ret\n"; }
+
     static void directive(std::string_view dir) { stream() << std::format("  .{}\n", dir); }
     static void globl(std::string_view name) { stream() << std::format("  .globl {}\n", name); }
     static void label(std::string_view name) { stream() << std::format("{}:\n", name); }
@@ -111,15 +115,21 @@ public:
     template <typename Src, typename Dst>
     static void lea(Src src, Dst dst) { stream() << std::format("  lea {}, {}\n", format_op(src), format_op(dst)); }
 
+    template <typename Src, typename Dst>
+    static void movsbl(Src src, Dst dst) { stream() << std::format("  movsbl {}, {}\n", format_op(src), format_op(dst)); }
+
+    template <typename Src, typename Dst>
+    static void movswl(Src src, Dst dst) { stream() << std::format("  movswl {}, {}\n", format_op(src), format_op(dst)); }
+
+    template <typename Src, typename Dst>
+    static void movsxd(Src src, Dst dst) { stream() << std::format("  movsxd {}, {}\n", format_op(src), format_op(dst)); }
+
     static void movsbq(Mem src, Reg dst) { stream() << std::format("  movsbq {}, {}\n", format_op(src), format_op(dst)); }
     static void movswq(Mem src, Reg dst) { stream() << std::format("  movswq {}, {}\n", format_op(src), format_op(dst)); }
-    static void movsxd(Mem src, Reg dst) { stream() << std::format("  movsxd {}, {}\n", format_op(src), format_op(dst)); }
 
-    static void idiv(Reg op) { stream() << "  cqo\n"
-                                        << std::format("  idiv {}\n", format_op(op)); }
+    static void idiv(Reg op) { stream() << std::format("  idiv {}\n", format_op(op)); }
     static void jmp(std::string_view label) { stream() << std::format("  jmp {}\n", label); }
     static void je(std::string_view label) { stream() << std::format("  je {}\n", label); }
     static void jne(std::string_view label) { stream() << std::format("  jne {}\n", label); }
     static void call(std::string_view label) { stream() << std::format("  call {}\n", label); }
-    static void ret() { stream() << "  ret\n"; }
 };

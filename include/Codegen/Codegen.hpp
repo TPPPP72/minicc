@@ -163,6 +163,12 @@ private:
             Assembler::call(func_node->func_name);
             return;
         }
+        case NodeKind::TYPECAST:{
+            auto typecast_node = static_cast<TypeCastNode *>(node);
+            genExpr(typecast_node->expr);
+            emitCast(typecast_node->expr->type_id, typecast_node->type_id);
+            return;
+        }
         default:
             break;
         }
@@ -173,23 +179,52 @@ private:
         genExpr(binary_node->lhs);
         Assembler::pop(Reg{"rdi"});
 
+        auto size = m_sema.getTypeSize(binary_node->type_id);
+        std::string_view ax, di;
+
+        switch (size)
+        {
+        case 8:
+            ax = "rax";
+            di = "rdi";
+            break;
+        case 4:
+            ax = "eax";
+            di = "edi";
+            break;
+        case 2:
+            ax = "ax";
+            di = "di";
+            break;
+        case 1:
+            ax = "al";
+            di = "dil";
+            break;
+        default:
+            ax = "rax";
+            di = "rdi";
+            break;
+        }
+
         switch (binary_node->kind)
         {
         case NodeKind::ADD:
-            Assembler::add(Reg{"rdi"}, Reg{"rax"});
+            Assembler::add(Reg{di}, Reg{ax});
             return;
         case NodeKind::SUB:
-            Assembler::sub(Reg{"rdi"}, Reg{"rax"});
+            Assembler::sub(Reg{di}, Reg{ax});
             return;
         case NodeKind::MUL:
-            Assembler::imul(Reg{"rdi"}, Reg{"rax"});
+            Assembler::imul(Reg{di}, Reg{ax});
             return;
         case NodeKind::DIV:
-            Assembler::idiv(Reg{"rdi"});
+            preIdiv(size);
+            Assembler::idiv(Reg{di});
             return;
         case NodeKind::MOD:
-            Assembler::idiv(Reg{"rdi"});
-            Assembler::mov(Reg{"rdx"}, Reg{"rax"});
+            preIdiv(size);
+            Assembler::idiv(Reg{di});
+            Assembler::mov(Reg{"rdx"}, Reg{ax});
             return;
         case NodeKind::EQ:
         case NodeKind::NE:
@@ -197,7 +232,7 @@ private:
         case NodeKind::LT:
         case NodeKind::GE:
         case NodeKind::GT:
-            Assembler::cmp(Reg{"rdi"}, Reg{"rax"});
+            Assembler::cmp(Reg{di}, Reg{ax});
             switch (binary_node->kind)
             {
             case NodeKind::EQ:
@@ -421,6 +456,62 @@ private:
         last_emitted_line = line;
     }
 
+    void emitCast(TypeId from, TypeId to)
+    {
+        auto from_ty = m_sema.getTypeContext().getType(from);
+        auto to_ty   = m_sema.getTypeContext().getType(to);
+
+        if (to_ty.kind == TypeKind::VOID)
+            return;
+
+        auto getTypeCastIndex = [](TypeKind k)
+        {
+            switch (k)
+            {
+            case TypeKind::CHAR:
+                return 0;
+            case TypeKind::SHORT:
+                return 1;
+            case TypeKind::INT:
+                return 2;
+            case TypeKind::LONG:
+                return 3;
+            default:
+                return 3;
+            }
+        };
+
+        enum class CastAction
+        {
+            NONE,
+            CAST_I8_I32,
+            CAST_I16_I32,
+            CAST_I32_I64
+        };
+
+        static const CastAction cast_table[4][4] = {
+            {CastAction::NONE, CastAction::NONE, CastAction::NONE, CastAction::CAST_I32_I64},
+            {CastAction::CAST_I8_I32, CastAction::NONE, CastAction::NONE, CastAction::CAST_I32_I64},
+            {CastAction::CAST_I8_I32, CastAction::CAST_I16_I32, CastAction::NONE, CastAction::CAST_I32_I64},
+            {CastAction::CAST_I8_I32, CastAction::CAST_I16_I32, CastAction::NONE, CastAction::NONE}};
+
+        CastAction action = cast_table[getTypeCastIndex(from_ty.kind)][getTypeCastIndex(to_ty.kind)];
+        switch (action)
+        {
+        case CastAction::NONE:
+            break;
+        case CastAction::CAST_I8_I32:
+            Assembler::movsbl(Reg{"al"}, Reg{"eax"});
+            break;
+        case CastAction::CAST_I16_I32:
+            Assembler::movswl(Reg{"ax"}, Reg{"eax"});
+            break;
+        case CastAction::CAST_I32_I64:
+            Assembler::movsxd(Reg{"eax"}, Reg{"rax"});
+            break;
+        }
+    }
+
     void assign_lvar_offsets(const std::vector<Symbol *> &symbols)
     {
         for (auto sym : symbols)
@@ -495,6 +586,14 @@ private:
             }
         }
         return dst;
+    }
+
+    static void preIdiv(size_t size)
+    {
+        if (size == 8)
+            Assembler::cqo();
+        else
+            Assembler::cdq();
     }
 
 private:
