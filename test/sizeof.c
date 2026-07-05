@@ -20,6 +20,11 @@ int main()
     ASSERT(48, sizeof(int[3][4]));
     ASSERT(8, sizeof(struct {int a; int b; }));
 
+    {
+        int a = 1;
+        ASSERT(1, sizeof((char)a));
+    }
+
     printf("OK\n");
     return 0;
 }

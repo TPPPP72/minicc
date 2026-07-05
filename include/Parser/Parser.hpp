@@ -421,14 +421,14 @@ private:
 
     Node *mul()
     {
-        auto node = unary();
+        auto node = cast();
 
         while (true)
         {
             if (tok.tryConsumeToken("*"))
             {
                 auto &op_tok  = tok.getPrev();
-                auto rhs      = unary();
+                auto rhs      = cast();
                 TypeId ty     = node->type_id;
                 node          = m_arena.alloc<BinaryNode>(NodeKind::MUL, node, rhs, op_tok);
                 node->type_id = ty;
@@ -438,7 +438,7 @@ private:
             if (tok.tryConsumeToken("/"))
             {
                 auto &op_tok  = tok.getPrev();
-                auto rhs      = unary();
+                auto rhs      = cast();
                 TypeId ty     = node->type_id;
                 node          = m_arena.alloc<BinaryNode>(NodeKind::DIV, node, rhs, op_tok);
                 node->type_id = ty;
@@ -448,7 +448,7 @@ private:
             if (tok.tryConsumeToken("%"))
             {
                 auto &op_tok  = tok.getPrev();
-                auto rhs      = unary();
+                auto rhs      = cast();
                 TypeId ty     = node->type_id;
                 node          = m_arena.alloc<BinaryNode>(NodeKind::MOD, node, rhs, op_tok);
                 node->type_id = ty;
@@ -459,15 +459,29 @@ private:
         }
     }
 
+    Node *cast(){
+        if (tok.isToken("(") && isTypename(tok.lookAhead(1)))
+        {
+            auto &op_tok = tok.getToken();
+            tok.consumeToken("(");
+            auto basety    = declSpec();
+            auto final_tid = abstractDeclarator(basety);
+            tok.consumeToken(")");
+            return m_arena.alloc<TypeCastNode>(cast(), final_tid, op_tok);
+        }
+
+        return unary();
+    }
+
     Node *unary()
     {
         if (tok.tryConsumeToken("+"))
-            return unary();
+            return cast();
 
         if (tok.tryConsumeToken("-"))
         {
             auto &op_tok  = tok.getPrev();
-            auto node     = m_arena.alloc<UnaryNode>(NodeKind::NEG, unary(), op_tok);
+            auto node     = m_arena.alloc<UnaryNode>(NodeKind::NEG, cast(), op_tok);
             node->type_id = node->lhs->type_id;
             return node;
         }
@@ -475,13 +489,13 @@ private:
         if (tok.tryConsumeToken("*"))
         {
             auto &op_tok = tok.getPrev();
-            return m_sema.buildDeref(unary(), op_tok);
+            return m_sema.buildDeref(cast(), op_tok);
         }
 
         if (tok.tryConsumeToken("&"))
         {
             auto &op_tok = tok.getPrev();
-            return m_sema.buildAddr(unary(), op_tok);
+            return m_sema.buildAddr(cast(), op_tok);
         }
 
         if (tok.tryConsumeToken("sizeof"))
@@ -498,7 +512,7 @@ private:
             }
             else
             {
-                auto node = unary();
+                auto node = cast();
                 final_tid = node->type_id;
             }
             auto size         = m_sema.getTypeSize(final_tid);
@@ -831,12 +845,12 @@ private:
         return tok.getToken();
     }
 
-    std::int32_t getNumber()
+    std::int64_t getNumber()
     {
         if (tok.getToken().kind != TokenKind::NUM)
             DiagnosticEngine::errorOnTok(tok.getToken(), "expected a number");
 
-        std::int32_t value;
+        std::int64_t value;
         auto content = tok.getToken().getContent();
         std::from_chars(content.begin(), content.end(), value);
         return value;
