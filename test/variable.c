@@ -301,7 +301,5 @@ int main()
     ASSERT(4, test_nested8());
 
     void *x;
-
-    printf("OK\n");
     return 0;
 }

@@ -35,7 +35,5 @@ int main()
     ASSERT(104, "\1500"[0]);
     ASSERT(0, "\x00"[0]);
     ASSERT(119, "\x77"[0]);
-
-    printf("OK\n");
     return 0;
 }

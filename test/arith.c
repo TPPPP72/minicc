@@ -33,7 +33,6 @@ int main()
     ASSERT(0, 1 >= 2);
 
     ASSERT(3, (1, 2, 3));
-
-    printf("OK\n");
+    
     return 0;
 }

@@ -88,7 +88,5 @@ int main()
 
     ASSERT(3, test_assign1());
     ASSERT(3, test_assign2());
-
-    printf("OK\n");
     return 0;
 }

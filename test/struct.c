@@ -389,7 +389,5 @@ int main()
     ASSERT(7, test_assign2());
     ASSERT(7, test_assign3());
     ASSERT(5, test_assign4());
-
-    printf("OK\n");
     return 0;
 }

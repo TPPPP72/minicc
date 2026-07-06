@@ -45,7 +45,5 @@ int main()
     ASSERT(8, test_combination5());
     ASSERT(8, test_combination6());
     ASSERT(8, test_combination7());
-
-    printf("OK\n");
     return 0;
 }

@@ -280,7 +280,5 @@ int main()
 
     ASSERT(7, test_align1());
     ASSERT(1, test_align2());
-
-    printf("OK\n");
     return 0;
 }

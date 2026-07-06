@@ -33,7 +33,5 @@ int main()
     ASSERT(8, sizeof((long)-10 - 5));
     ASSERT(8, sizeof((long)-10 * 5));
     ASSERT(8, sizeof((long)-10 / 5));
-
-    printf("OK\n");
     return 0;
 }

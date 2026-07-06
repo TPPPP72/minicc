@@ -208,8 +208,8 @@ private:
         if (tok.tryConsumeToken("return"))
         {
             auto kw_tok = tok.getPrev();
-            auto node   = m_arena.alloc<ReturnNode>(expr(), kw_tok);
-            node->tok   = kw_tok;
+            auto node   = expr();
+            node      = m_arena.alloc<ReturnNode>(node, kw_tok);
             tok.consumeToken(";");
             return node;
         }
@@ -564,13 +564,18 @@ private:
         {
             tok.skipToken();
 
-            if (tok.tryConsumeToken("("))
-                return funCall(token);
-
-            auto var = static_cast<Variable *>(m_sym_table.lookupIdent(token.getContent()));
-            if (!var)
+            auto sym = m_sym_table.lookupIdent(token.getContent());
+            if (!sym)
                 DiagnosticEngine::errorOnTok(token, "undeclared identifier '{}'", token.getContent());
 
+            if (tok.tryConsumeToken("(")){
+                if (sym->sym_type != SymbolType::Function)
+                    DiagnosticEngine::errorOnTok(token, "identifier '{}' is not a function", token.getContent());
+                
+                return funCall(token);
+            }
+
+            auto var = static_cast<Variable *>(sym);
             auto node     = m_arena.alloc<VarNode>(var, token);
             node->type_id = var->type_id;
             return node;

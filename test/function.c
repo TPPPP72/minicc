@@ -65,6 +65,5 @@ int main()
     ASSERT(1, sub_short(7, 3, 3));
     ASSERT(1, sub_long(7, 3, 3));
 
-    printf("OK\n");
     return 0;
 }

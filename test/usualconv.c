@@ -52,7 +52,5 @@ int main()
         y   = x;
         ASSERT(5, y.a);
     }
-
-    printf("OK\n");
     return 0;
 }

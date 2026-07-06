@@ -65,7 +65,5 @@ int main()
         MyInt2 x;
         ASSERT(16, sizeof(x));
     }
-
-    printf("OK\n");
     return 0;
 }

@@ -110,7 +110,5 @@ int main()
 
     ASSERT(10, test_statement_expr_9());
     ASSERT(55, test_statement_expr_10());
-
-    printf("OK\n");
     return 0;
 }

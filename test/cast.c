@@ -24,6 +24,5 @@ int main()
 
     (void)1;
 
-    printf("OK\n");
     return 0;
 }
