@@ -13,6 +13,7 @@ public:
     {
         m_types.reserve(32);
         m_types.emplace_back(TypeKind::VOID, -1, 1, 1);
+        m_types.emplace_back(TypeKind::BOOL, -1, 1, 1);
         m_types.emplace_back(TypeKind::CHAR, -1, 1, 1);
         m_types.emplace_back(TypeKind::SHORT, -1, 2, 2);
         m_types.emplace_back(TypeKind::INT, -1, 4, 4);
@@ -21,13 +22,15 @@ public:
 
     TypeId getVoidTypeId() const noexcept { return 0; }
 
-    TypeId getCharTypeId() const noexcept { return 1; }
+    TypeId getBoolTypeId() const noexcept { return 1; }
 
-    TypeId getShortTypeId() const noexcept { return 2; }
+    TypeId getCharTypeId() const noexcept { return 2; }
 
-    TypeId getIntTypeId() const noexcept { return 3; }
+    TypeId getShortTypeId() const noexcept { return 3; }
 
-    TypeId getLongTypeId() const noexcept { return 4; }
+    TypeId getIntTypeId() const noexcept { return 4; }
+
+    TypeId getLongTypeId() const noexcept { return 5; }
 
     TypeId getPointerTypeId(TypeId base_id)
     {

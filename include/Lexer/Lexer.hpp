@@ -386,7 +386,7 @@ private:
     std::array<std::string_view, 17> twochar_operator{"=="sv, "!="sv, ">="sv, "<="sv, "&&"sv, "||"sv, ">>"sv, "<<"sv, "+="sv, "-="sv, "*="sv, "/="sv, "%="sv, "&="sv, "|="sv, "^="sv, "->"sv};
     std::array<std::string_view, 14> onechar_operator{"="sv, "!"sv, ">"sv, "<"sv, "&"sv, "|"sv, "^"sv, "-"sv, "+"sv, "*"sv, "/"sv, "%"sv, "~"sv, "."sv};
     std::array<std::string_view, 8> punctator{","sv, ";"sv, "{"sv, "}"sv, "("sv, ")"sv, "["sv, "]"sv};
-    std::array<std::string_view, 16> keywords{"void"sv, "char"sv, "short"sv, "int"sv, "long"sv, "float"sv, "double"sv, "main"sv, "if"sv, "while"sv, "for"sv, "return"sv, "sizeof"sv, "struct"sv, "union"sv, "typedef"sv};
+    std::array<std::string_view, 20> keywords{"void"sv, "_Bool"sv, "bool"sv, "char"sv, "short"sv, "int"sv, "long"sv, "float"sv, "double"sv, "main"sv, "if"sv, "while"sv, "for"sv, "return"sv, "sizeof"sv, "struct"sv, "union"sv, "typedef"sv, "true"sv, "false"sv};
     std::string m_source;
     std::vector<Token> tokens;
 };

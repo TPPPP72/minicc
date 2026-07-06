@@ -124,6 +124,9 @@ public:
     template <typename Src, typename Dst>
     static void movsxd(Src src, Dst dst) { stream() << std::format("  movsxd {}, {}\n", format_op(src), format_op(dst)); }
 
+    template <typename Src, typename Dst>
+    static void movzx(Src src, Dst dst) { stream() << std::format("  movzx {}, {}\n", format_op(src), format_op(dst)); }
+
     static void movsbq(Mem src, Reg dst) { stream() << std::format("  movsbq {}, {}\n", format_op(src), format_op(dst)); }
     static void movswq(Mem src, Reg dst) { stream() << std::format("  movswq {}, {}\n", format_op(src), format_op(dst)); }
 

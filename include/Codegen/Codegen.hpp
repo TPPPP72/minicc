@@ -464,10 +464,37 @@ private:
         if (to_ty.kind == TypeKind::VOID)
             return;
 
+        if (to_ty.kind == TypeKind::BOOL)
+        {
+            if (from_ty.kind == TypeKind::BOOL)
+                return;
+
+            switch (from_ty.size)
+            {
+            case 8:
+                Assembler::cmp(Imm{0}, Reg{"rax"});
+                break;
+            case 4:
+                Assembler::cmp(Imm{0}, Reg{"eax"});
+                break;
+            case 2:
+                Assembler::cmp(Imm{0}, Reg{"ax"});
+                break;
+            case 1:
+                Assembler::cmp(Imm{0}, Reg{"al"});
+                break;
+            }
+
+            Assembler::setne(Reg{"al"});
+            Assembler::movzx(Reg{"al"}, Reg{"eax"});
+            return;
+        }
+
         auto getTypeCastIndex = [](TypeKind k)
         {
             switch (k)
             {
+            case TypeKind::BOOL:
             case TypeKind::CHAR:
                 return 0;
             case TypeKind::SHORT:

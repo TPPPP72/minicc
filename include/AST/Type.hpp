@@ -7,6 +7,7 @@
 enum class TypeKind : std::uint32_t
 {
     VOID,
+    BOOL,
     CHAR,
     SHORT,
     INT,

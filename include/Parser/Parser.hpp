@@ -610,6 +610,24 @@ private:
             return node;
         }
 
+        if (token.kind == TokenKind::KEYWORD)
+        {
+            if (token.getContent() == "true")
+            {
+                auto node = m_arena.alloc<NumNode>(1, tok.getToken());
+                tok.skipToken();
+                node->type_id = m_sema.getTypeContext().getBoolTypeId();
+                return node;
+            }
+            if (token.getContent() == "false")
+            {
+                auto node = m_arena.alloc<NumNode>(0, tok.getToken());
+                tok.skipToken();
+                node->type_id = m_sema.getTypeContext().getBoolTypeId();
+                return node;
+            }
+        }
+
         DiagnosticEngine::errorOnTok(token, "expect a num but got '{}'", token.getContent());
     }
 
@@ -619,11 +637,12 @@ private:
         enum TypeBits
         {
             VOID  = 1 << 0,
-            CHAR  = 1 << 2,
-            SHORT = 1 << 4,
-            INT   = 1 << 6,
-            LONG  = 1 << 8,
-            OTHER = 1 << 10,
+            BOOL  = 1 << 2,
+            CHAR  = 1 << 4,
+            SHORT = 1 << 6,
+            INT   = 1 << 8,
+            LONG  = 1 << 10,
+            OTHER = 1 << 12,
         };
 
         TypeId ty   = m_sema.getTypeContext().getIntTypeId();
@@ -664,6 +683,8 @@ private:
 
             if (tok.tryConsumeToken("void"))
                 counter += VOID;
+            else if(tok.tryConsumeToken("_Bool") || tok.tryConsumeToken("bool"))
+                counter += BOOL;
             else if (tok.tryConsumeToken("char"))
                 counter += CHAR;
             else if (tok.tryConsumeToken("short"))
@@ -683,6 +704,8 @@ private:
         {
         case VOID:
             return m_sema.getTypeContext().getVoidTypeId();
+        case BOOL:
+            return m_sema.getTypeContext().getBoolTypeId();
         case CHAR:
             return m_sema.getTypeContext().getCharTypeId();
         case SHORT:
@@ -870,7 +893,7 @@ private:
 
     bool isTypename(const Token &token)
     {
-        std::array<std::string_view, 7> typenames{"void"sv, "char"sv, "short"sv, "int"sv, "long"sv, "struct"sv, "union"sv};
+        std::array<std::string_view, 9> typenames{"void"sv, "_Bool"sv, "bool"sv, "char"sv, "short"sv, "int"sv, "long"sv, "struct"sv, "union"sv};
         auto it = std::find(typenames.begin(), typenames.end(), token.getContent());
         if (it != typenames.end())
             return true;

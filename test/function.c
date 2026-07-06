@@ -64,6 +64,18 @@ int check_int(int x)
     expected = 255;
     return (x == expected);
 }
+_Bool bool_fn_add(_Bool x)
+{
+    return x + 1;
+}
+_Bool bool_fn_sub(_Bool x)
+{
+    return x - 1;
+}
+
+bool is_true(bool x){
+    return x;
+}
 
 int main()
 {
@@ -87,6 +99,16 @@ int main()
     ASSERT(5, int_to_char(261));
     char c = 255;
     ASSERT(0, check_int(c));
+
+    ASSERT(1, bool_fn_add(3));
+    ASSERT(0, bool_fn_sub(3));
+    ASSERT(1, bool_fn_add(-3));
+    ASSERT(0, bool_fn_sub(-3));
+    ASSERT(1, bool_fn_add(0));
+    ASSERT(1, bool_fn_sub(0));
+
+    ASSERT(true, is_true(true));
+    ASSERT(false, is_true(false));
 
     return 0;
 }
