@@ -100,7 +100,9 @@ private:
         auto func_sign = m_sema.getTypeContext().getFuncSignature(func_tid);
 
         auto func  = m_arena.alloc<Function>();
+        current_func = func;
         func->name = ident.getContent();
+        func->type_id = func_tid;
 
         m_sym_table.insertGlobalIdent(func->name, func);
 
@@ -209,6 +211,10 @@ private:
         {
             auto kw_tok = tok.getPrev();
             auto node   = expr();
+
+            auto& func_sign = m_sema.getTypeContext().getFuncSignature(current_func->type_id);
+            if (node->type_id != func_sign.return_type_id)
+                node = m_arena.alloc<TypeCastNode>(node, func_sign.return_type_id, kw_tok);
             node      = m_arena.alloc<ReturnNode>(node, kw_tok);
             tok.consumeToken(";");
             return node;
@@ -571,7 +577,7 @@ private:
             if (tok.tryConsumeToken("(")){
                 if (sym->sym_type != SymbolType::Function)
                     DiagnosticEngine::errorOnTok(token, "identifier '{}' is not a function", token.getContent());
-                
+
                 return funCall(token);
             }
 
@@ -794,8 +800,12 @@ private:
     Node *funCall(const Token &ident)
     {
         auto node     = m_arena.alloc<FuncCallNode>(ident.getContent(), ident);
-        node->type_id = m_sema.getTypeContext().getLongTypeId();
 
+        auto func = static_cast<Function *>(m_sym_table.lookupIdent(ident.getContent()));
+        auto& func_sign = m_sema.getTypeContext().getFuncSignature(func->type_id);
+
+        node->type_id = func_sign.return_type_id;
+        
         bool is_first_arg{true};
         while (!tok.tryConsumeToken(")"))
         {
@@ -804,6 +814,12 @@ private:
 
             node->args.emplace_back(assign());
             is_first_arg = false;
+        }
+
+        for (size_t i = 0; i < func_sign.param_types.size(); ++i)
+        {
+            if (node->args[i]->type_id != func_sign.param_types[i])
+                node->args[i] = m_arena.alloc<TypeCastNode>(node->args[i], func_sign.param_types[i]);
         }
 
         return node;
@@ -930,4 +946,5 @@ private:
     TokenViewer tok;
     Sema &m_sema;
     Arena &m_arena;
+    Function* current_func;
 };

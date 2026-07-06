@@ -184,7 +184,9 @@ private:
         Type l = m_ty_ctx.getType(lhs->type_id);
         Type r = m_ty_ctx.getType(rhs->type_id);
 
-        if (l.size == 8 || r.size == 8)
+        if (l.kind == TypeKind::PTR)
+            return m_ty_ctx.getPointerTypeId(l.base_type_id);
+        else if (l.size == 8 || r.size == 8)
             return m_ty_ctx.getLongTypeId();
         else
             return m_ty_ctx.getIntTypeId();

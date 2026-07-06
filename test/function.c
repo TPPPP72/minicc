@@ -48,6 +48,23 @@ int sub_long(long a, long b, long c)
 
 int def();
 
+int g1;
+
+int *g1_ptr()
+{
+    return &g1;
+}
+char int_to_char(int x)
+{
+    return x;
+}
+int check_int(int x)
+{
+    int expected;
+    expected = 255;
+    return (x == expected);
+}
+
 int main()
 {
     ASSERT(3, ret3());
@@ -64,6 +81,12 @@ int main()
     ASSERT(1, sub_char(7, 3, 3));
     ASSERT(1, sub_short(7, 3, 3));
     ASSERT(1, sub_long(7, 3, 3));
+
+    g1 = 3;
+    ASSERT(3, *g1_ptr());
+    ASSERT(5, int_to_char(261));
+    char c = 255;
+    ASSERT(0, check_int(c));
 
     return 0;
 }
