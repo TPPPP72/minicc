@@ -604,28 +604,10 @@ private:
 
         if (token.kind == TokenKind::NUM)
         {
-            auto node = m_arena.alloc<NumNode>(getNumber(), tok.getToken());
+            auto node = m_arena.alloc<NumNode>(token.val, tok.getToken());
             tok.skipToken();
             node->type_id = m_sema.getTypeContext().getIntTypeId();
             return node;
-        }
-
-        if (token.kind == TokenKind::KEYWORD)
-        {
-            if (token.getContent() == "true")
-            {
-                auto node = m_arena.alloc<NumNode>(1, tok.getToken());
-                tok.skipToken();
-                node->type_id = m_sema.getTypeContext().getBoolTypeId();
-                return node;
-            }
-            if (token.getContent() == "false")
-            {
-                auto node = m_arena.alloc<NumNode>(0, tok.getToken());
-                tok.skipToken();
-                node->type_id = m_sema.getTypeContext().getBoolTypeId();
-                return node;
-            }
         }
 
         DiagnosticEngine::errorOnTok(token, "expect a num but got '{}'", token.getContent());
@@ -882,9 +864,6 @@ private:
 
     std::int64_t getNumber()
     {
-        if (tok.getToken().kind != TokenKind::NUM)
-            DiagnosticEngine::errorOnTok(tok.getToken(), "expected a number");
-
         std::int64_t value;
         auto content = tok.getToken().getContent();
         std::from_chars(content.begin(), content.end(), value);

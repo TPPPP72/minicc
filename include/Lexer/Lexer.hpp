@@ -4,6 +4,7 @@
 #include <Lexer/Token.hpp>
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <fstream>
 #include <sstream>
 #include <string_view>
@@ -151,9 +152,70 @@ public:
                     ++len;
 
                 tokens.emplace_back(source, TokenKind::NUM, offset, len, current_line, current_col);
+                tokens.back().val = toNumber(tokens.back().getContent());
 
                 offset += len;
                 current_col += len;
+                continue;
+            }
+
+            if (source.substr(offset, 4) == "true")
+            {
+                tokens.emplace_back(source, TokenKind::NUM, offset, 4, current_line, current_col);
+                tokens.back().val = 1;
+                offset += 4;
+                current_col += 4;
+                continue;
+            }
+
+            if (source.substr(offset, 5) == "false")
+            {
+                tokens.emplace_back(source, TokenKind::NUM, offset, 5, current_line, current_col);
+                tokens.back().val = 0;
+                offset += 5;
+                current_col += 5;
+                continue;
+            }
+
+            // char
+            if (source[offset] == '\'')
+            {
+                std::uint32_t len{1};
+                char result = 0;
+
+                while (offset + len < maxlen && source[offset + len] != '\'')
+                {
+                    char ch = source[offset + len];
+                    if (ch == '\0' || ch == '\n')
+                    {
+                        tokens.emplace_back(source, TokenKind::NUM, offset, len, current_line, current_col);
+                        DiagnosticEngine::errorOnTok(tokens.back(), "unclosed char literial");
+                    }
+
+                    if (ch == '\\')
+                    {
+                        ++len;
+                        ch     = readEscapedChar(source, offset, len);
+                        result = ch;
+                        continue;
+                    }
+
+                    result = ch;
+                    ++len;
+                }
+
+                if (offset + len >= maxlen || source[offset + len] != '\'')
+                {
+                    tokens.emplace_back(source, TokenKind::NUM, offset, len, current_line, current_col);
+                    DiagnosticEngine::errorOnTok(tokens.back(), "unclosed char literial");
+                }
+
+                tokens.emplace_back(source, TokenKind::NUM, offset, len + 1, current_line, current_col);
+                tokens.back().val = result;
+
+                offset += (len + 1);
+                current_col += (len + 1);
+
                 continue;
             }
 
@@ -285,6 +347,13 @@ public:
     }
 
 private:
+    std::int64_t toNumber(std::string_view content)
+    {
+        std::int64_t value;
+        std::from_chars(content.begin(), content.end(), value);
+        return value;
+    }
+
     uint8_t readEscapedChar(std::string_view source, std::uint32_t offset, std::uint32_t &len)
     {
         char ch = source[offset + len];
@@ -386,7 +455,7 @@ private:
     std::array<std::string_view, 17> twochar_operator{"=="sv, "!="sv, ">="sv, "<="sv, "&&"sv, "||"sv, ">>"sv, "<<"sv, "+="sv, "-="sv, "*="sv, "/="sv, "%="sv, "&="sv, "|="sv, "^="sv, "->"sv};
     std::array<std::string_view, 14> onechar_operator{"="sv, "!"sv, ">"sv, "<"sv, "&"sv, "|"sv, "^"sv, "-"sv, "+"sv, "*"sv, "/"sv, "%"sv, "~"sv, "."sv};
     std::array<std::string_view, 8> punctator{","sv, ";"sv, "{"sv, "}"sv, "("sv, ")"sv, "["sv, "]"sv};
-    std::array<std::string_view, 20> keywords{"void"sv, "_Bool"sv, "bool"sv, "char"sv, "short"sv, "int"sv, "long"sv, "float"sv, "double"sv, "main"sv, "if"sv, "while"sv, "for"sv, "return"sv, "sizeof"sv, "struct"sv, "union"sv, "typedef"sv, "true"sv, "false"sv};
+    std::array<std::string_view, 20> keywords{"void"sv, "_Bool"sv, "bool"sv, "char"sv, "short"sv, "int"sv, "long"sv, "float"sv, "double"sv, "main"sv, "if"sv, "while"sv, "for"sv, "return"sv, "sizeof"sv, "struct"sv, "union"sv, "typedef"sv};
     std::string m_source;
     std::vector<Token> tokens;
 };

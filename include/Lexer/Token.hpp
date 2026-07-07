@@ -20,6 +20,7 @@ enum class TokenKind
 struct Token
 {
     std::string string_val;
+    std::int64_t val;
     std::string_view source;
     TokenKind kind;
     std::uint32_t loc;
