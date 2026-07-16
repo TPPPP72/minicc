@@ -8,6 +8,7 @@
 #include <Scope/Variable.hpp>
 #include <Sema/Sema.hpp>
 #include <Util/Tags.hpp>
+#include <Attr/Attr.hpp>
 #include <charconv>
 #include <cstring>
 
@@ -20,19 +21,19 @@ public:
     {
         while (tok.getToken().kind != TokenKind::ENDF)
         {
+            uint32_t attr{};
             if (isAttr())
             {
                 if (tok.tryConsumeToken("typedef"))
-                    TypedefDecl();
+                    attr += TYPEDEF;
+                else if (tok.tryConsumeToken("static"))
+                    attr += STATIC;
             }
-            else if (isFunction())
-            {
-                funcDecl();
-            }
+            
+            if (isFunction())
+                funcDecl(attr);
             else if (isTypename())
-            {
-                varDecl<IsGlobal>();
-            }
+                varDecl<IsGlobal>(attr);
         }
         return m_sym_table.getGlobalSymbols();
     }
@@ -90,8 +91,8 @@ private:
         return layout_tid;
     }
 
-    void funcDecl()
-    {
+    void funcDecl(uint32_t attr)
+    {       
         auto basety = declSpec();
 
         Token ident;
@@ -100,6 +101,10 @@ private:
         auto func_sign = m_sema.getTypeContext().getFuncSignature(func_tid);
 
         auto func  = m_arena.alloc<Function>();
+
+        if (attr & STATIC)
+            func->is_static = true;
+
         current_func = func;
         func->name = ident.getContent();
         func->type_id = func_tid;
@@ -123,8 +128,14 @@ private:
     }
 
     template <typename T>
-    Node *varDecl()
+    Node *varDecl(uint32_t attr)
     {
+        if (attr & TYPEDEF)
+        {
+            typedefDecl();
+            return nullptr;
+        }
+
         TypeId basety = declSpec();
 
         auto node     = m_arena.alloc<BlockNode>(tok.getToken());
@@ -171,7 +182,7 @@ private:
         return node;
     }
 
-    void TypedefDecl()
+    void typedefDecl()
     {
         auto basety = declSpec();
 
@@ -197,13 +208,13 @@ private:
     {
         if (isTypename())
         {
-            return varDecl<IsLocal>();
+            return varDecl<IsLocal>(0);
         }
         else if (isAttr())
         {
             auto &token = tok.getToken();
             if (tok.tryConsumeToken("typedef"))
-                TypedefDecl();
+                typedefDecl();
             return m_arena.alloc<BlockNode>(token);
         }
 
@@ -242,7 +253,7 @@ private:
             m_sym_table.enterScope();
             tok.consumeToken("(");
             if (isTypename())
-                node->init = varDecl<IsLocal>();
+                node->init = varDecl<IsLocal>(0);
             else
                 node->init = exprStmt();
             if (!tok.tryConsumeToken(";"))
@@ -896,7 +907,7 @@ private:
 
     bool isAttr()
     {
-        return tok.isToken("typedef");
+        return tok.isToken("typedef") || tok.isToken("static");
     }
 
     bool isFunction()

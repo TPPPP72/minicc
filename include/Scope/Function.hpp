@@ -11,6 +11,7 @@ struct Function : Symbol
     int stack_size{};
     bool is_definition{};
     bool is_local{};
+    bool is_static{};
 
     Function() : Symbol(SymbolType::Function) {}
 };

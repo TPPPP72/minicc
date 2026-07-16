@@ -68,6 +68,7 @@ public:
 
     static void directive(std::string_view dir) { stream() << std::format("  .{}\n", dir); }
     static void globl(std::string_view name) { stream() << std::format("  .globl {}\n", name); }
+    static void local(std::string_view name) { stream() << std::format("  .local {}\n", name); }
     static void label(std::string_view name) { stream() << std::format("{}:\n", name); }
     static void quad(int64_t val) { stream() << std::format("  .quad {}\n", val); }
     static void long_val(int32_t val) { stream() << std::format("  .long {}\n", val); }

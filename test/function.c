@@ -77,6 +77,10 @@ bool is_true(bool x){
     return x;
 }
 
+static int static_fn(){
+    return 5;
+}
+
 int main()
 {
     ASSERT(3, ret3());
@@ -109,6 +113,8 @@ int main()
 
     ASSERT(true, is_true(true));
     ASSERT(false, is_true(false));
+
+    ASSERT(5, static_fn());
 
     return 0;
 }

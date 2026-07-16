@@ -420,7 +420,10 @@ private:
             {
                 if (!func->is_definition)
                     continue;
-                Assembler::globl(func->name);
+                if (func->is_static)
+                    Assembler::local(func->name);
+                else
+                    Assembler::globl(func->name);
                 Assembler::directive("text");
                 Assembler::label(func->name);
 
