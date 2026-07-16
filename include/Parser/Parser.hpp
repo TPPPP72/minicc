@@ -239,8 +239,12 @@ private:
             auto kw_tok = tok.getPrev();
             auto node   = m_arena.alloc<ForNode>(kw_tok);
             node->tok   = kw_tok;
+            m_sym_table.enterScope();
             tok.consumeToken("(");
-            node->init = exprStmt();
+            if (isTypename())
+                node->init = varDecl<IsLocal>();
+            else
+                node->init = exprStmt();
             if (!tok.tryConsumeToken(";"))
             {
                 node->cond = expr();
@@ -252,6 +256,7 @@ private:
                 tok.consumeToken(")");
             }
             node->then = stmt();
+            m_sym_table.leaveScope();
             return node;
         }
 

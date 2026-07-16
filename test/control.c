@@ -94,6 +94,23 @@ int test_statement_expr_10()
     return j;
 }
 
+int test_statement_expr_11()
+{
+    int j = 0;
+    for (int i = 0; i <= 10; i = i + 1)
+        j = j + i;
+    return j;
+}
+
+int test_statement_expr_12()
+{
+    int i = 3;
+    int j = 0;
+    for (int i = 0; i <= 10; i = i + 1)
+        j = j + i;
+    return i;
+}
+
 int main()
 {
     ASSERT(3, test_statement_expr_1());
@@ -110,5 +127,8 @@ int main()
 
     ASSERT(10, test_statement_expr_9());
     ASSERT(55, test_statement_expr_10());
+
+    ASSERT(55, test_statement_expr_11());
+    ASSERT(3, test_statement_expr_12());
     return 0;
 }
