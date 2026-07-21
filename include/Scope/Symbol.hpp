@@ -7,7 +7,8 @@ enum class SymbolType
 {
     Variable,
     Function,
-    Typedef
+    Typedef,
+    Enum
 };
 
 struct Symbol

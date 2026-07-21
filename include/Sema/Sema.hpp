@@ -209,7 +209,7 @@ private:
 
     bool isInteger(TypeKind kind)
     {
-        return kind == TypeKind::BOOL || kind == TypeKind::CHAR || kind == TypeKind::SHORT || kind == TypeKind::INT || kind == TypeKind::LONG;
+        return kind == TypeKind::BOOL || kind == TypeKind::CHAR || kind == TypeKind::SHORT || kind == TypeKind::INT || kind == TypeKind::LONG || kind == TypeKind::ENUM;
     }
 
 private:

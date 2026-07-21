@@ -78,6 +78,21 @@ public:
         return m_layouts[m_types[tid].base_type_id];
     }
 
+    TypeId getEnumTypeId(TypeId base_tid, const std::vector<std::pair<std::string_view, int64_t>> &raw_members)
+    {
+        return getEnumTypeIdImpl(base_tid, raw_members);
+    }
+
+    TypeId getEnumTypeId(const std::vector<std::pair<std::string_view, int64_t>> &raw_members)
+    {
+        return getEnumTypeIdImpl(getIntTypeId(), raw_members);
+    }
+
+    const EnumInfo &getEnumInfo(TypeId tid) const
+    {
+        return m_enuminfos[m_types[tid].base_type_id];
+    }
+
 private:
     template <typename T>
     TypeId getLayoutTypeId(const std::vector<std::pair<std::string_view, TypeId>> &raw_members)
@@ -124,8 +139,24 @@ private:
         return new_type_id;
     }
 
+    TypeId getEnumTypeIdImpl(TypeId base_tid, const std::vector<std::pair<std::string_view, std::int64_t>> &raw_members)
+    {
+        TypeId info_id = static_cast<TypeId>(m_enuminfos.size());
+        auto &info     = m_enuminfos.emplace_back();
+
+        info.type_id = base_tid;
+        for (auto [name, val] : raw_members)
+            info.members.emplace_back(name, val);
+
+        TypeId new_type_id = static_cast<TypeId>(m_types.size());
+        auto type          = getType(base_tid);
+        m_types.emplace_back(TypeKind::ENUM, info_id, type.size, type.align);
+        return new_type_id;
+    }
+
 private:
     std::vector<Type> m_types;
     std::vector<FunctionSignature> m_func_signatures;
     std::vector<Layout> m_layouts;
+    std::vector<EnumInfo> m_enuminfos;
 };

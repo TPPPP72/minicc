@@ -1,14 +1,15 @@
 #pragma once
 
+#include <Attr/Attr.hpp>
 #include <Diag/Diag.hpp>
 #include <Lexer/Lexer.hpp>
+#include <Scope/Enum.hpp>
 #include <Scope/Function.hpp>
 #include <Scope/SymbolTable.hpp>
 #include <Scope/Typedef.hpp>
 #include <Scope/Variable.hpp>
 #include <Sema/Sema.hpp>
 #include <Util/Tags.hpp>
-#include <Attr/Attr.hpp>
 #include <charconv>
 #include <cstring>
 
@@ -29,7 +30,7 @@ public:
                 else if (tok.tryConsumeToken("static"))
                     attr += STATIC;
             }
-            
+
             if (isFunction())
                 funcDecl(attr);
             else if (isTypename())
@@ -91,8 +92,61 @@ private:
         return layout_tid;
     }
 
+    TypeId enumDecl()
+    {
+        std::string_view tag;
+        auto &token = tok.getToken();
+        if (token.kind == TokenKind::IDENT)
+        {
+            tag = token.getContent();
+            tok.skipToken();
+        }
+        if (!tok.isToken("{"))
+        {
+            auto info_tid = m_sym_table.lookupTag(tag);
+            if (info_tid == -1)
+                DiagnosticEngine::errorOnTok(token, "enum undefined");
+            return info_tid;
+        }
+        tok.skipToken(); // must be '{'
+
+        std::vector<std::pair<std::string_view, int64_t>> members;
+        int count = 0;
+        int value = 0;
+        while (!tok.tryConsumeToken("}"))
+        {
+            if (count++ > 0)
+                tok.consumeToken(",");
+
+            auto &ident = tok.getToken();
+            tok.skipToken();
+
+            if (tok.tryConsumeToken("="))
+            {
+                value = getNumber();
+                tok.skipToken();
+            }
+
+            auto *e    = m_arena.alloc<Enum>();
+            e->name    = ident.getContent();
+            e->type_id = m_sema.getTypeContext().getIntTypeId();
+            e->val     = value;
+
+            m_sym_table.insertIdent(ident.getContent(), e);
+            members.emplace_back(ident.getContent(), value);
+
+            ++value;
+        }
+        auto info_tid = m_sema.getTypeContext().getEnumTypeId(members);
+
+        if (!tag.empty())
+            m_sym_table.insertTag(tag, info_tid);
+
+        return info_tid;
+    }
+
     void funcDecl(uint32_t attr)
-    {       
+    {
         auto basety = declSpec();
 
         Token ident;
@@ -100,13 +154,13 @@ private:
 
         auto func_sign = m_sema.getTypeContext().getFuncSignature(func_tid);
 
-        auto func  = m_arena.alloc<Function>();
+        auto func = m_arena.alloc<Function>();
 
         if (attr & STATIC)
             func->is_static = true;
 
-        current_func = func;
-        func->name = ident.getContent();
+        current_func  = func;
+        func->name    = ident.getContent();
         func->type_id = func_tid;
 
         m_sym_table.insertGlobalIdent(func->name, func);
@@ -223,10 +277,10 @@ private:
             auto kw_tok = tok.getPrev();
             auto node   = expr();
 
-            auto& func_sign = m_sema.getTypeContext().getFuncSignature(current_func->type_id);
+            auto &func_sign = m_sema.getTypeContext().getFuncSignature(current_func->type_id);
             if (node->type_id != func_sign.return_type_id)
                 node = m_arena.alloc<TypeCastNode>(node, func_sign.return_type_id, kw_tok);
-            node      = m_arena.alloc<ReturnNode>(node, kw_tok);
+            node = m_arena.alloc<ReturnNode>(node, kw_tok);
             tok.consumeToken(";");
             return node;
         }
@@ -472,7 +526,8 @@ private:
         }
     }
 
-    Node *cast(){
+    Node *cast()
+    {
         if (tok.isToken("(") && isTypename(tok.lookAhead(1)))
         {
             auto &op_tok = tok.getToken();
@@ -590,17 +645,29 @@ private:
             if (!sym)
                 DiagnosticEngine::errorOnTok(token, "undeclared identifier '{}'", token.getContent());
 
-            if (tok.tryConsumeToken("(")){
+            if (tok.tryConsumeToken("("))
+            {
                 if (sym->sym_type != SymbolType::Function)
                     DiagnosticEngine::errorOnTok(token, "identifier '{}' is not a function", token.getContent());
 
                 return funCall(token);
             }
 
-            auto var = static_cast<Variable *>(sym);
-            auto node     = m_arena.alloc<VarNode>(var, token);
-            node->type_id = var->type_id;
-            return node;
+            if (auto var = dynamic_cast<Variable *>(sym))
+            {
+                auto node     = m_arena.alloc<VarNode>(var, token);
+                node->type_id = var->type_id;
+                return node;
+            }
+
+            if (auto e = dynamic_cast<Enum *>(sym))
+            {
+                auto node     = m_arena.alloc<NumNode>(e->val);
+                node->type_id = e->type_id;
+                return node;
+            }
+
+            DiagnosticEngine::errorOnTok(token, "identifier '{}' is not a variable or a enum member", token.getContent());
         }
 
         if (token.kind == TokenKind::STR)
@@ -650,7 +717,7 @@ private:
         {
             auto &token = tok.getToken();
 
-            if (token.getContent() == "struct" || token.getContent() == "union")
+            if (token.getContent() == "struct" || token.getContent() == "union" || token.getContent() == "enum")
             {
                 if (counter > 0)
                     DiagnosticEngine::errorOnTok(tok.getToken(), "invalid type combination");
@@ -659,6 +726,8 @@ private:
                     ty = structAndUnionDecl<IsStruct>();
                 else if (tok.tryConsumeToken("union"))
                     ty = structAndUnionDecl<IsUnion>();
+                else if (tok.tryConsumeToken("enum"))
+                    ty = enumDecl();
 
                 counter += OTHER;
                 continue;
@@ -681,7 +750,7 @@ private:
 
             if (tok.tryConsumeToken("void"))
                 counter += VOID;
-            else if(tok.tryConsumeToken("_Bool") || tok.tryConsumeToken("bool"))
+            else if (tok.tryConsumeToken("_Bool") || tok.tryConsumeToken("bool"))
                 counter += BOOL;
             else if (tok.tryConsumeToken("char"))
                 counter += CHAR;
@@ -820,13 +889,13 @@ private:
 private:
     Node *funCall(const Token &ident)
     {
-        auto node     = m_arena.alloc<FuncCallNode>(ident.getContent(), ident);
+        auto node = m_arena.alloc<FuncCallNode>(ident.getContent(), ident);
 
-        auto func = static_cast<Function *>(m_sym_table.lookupIdent(ident.getContent()));
-        auto& func_sign = m_sema.getTypeContext().getFuncSignature(func->type_id);
+        auto func       = static_cast<Function *>(m_sym_table.lookupIdent(ident.getContent()));
+        auto &func_sign = m_sema.getTypeContext().getFuncSignature(func->type_id);
 
         node->type_id = func_sign.return_type_id;
-        
+
         bool is_first_arg{true};
         while (!tok.tryConsumeToken(")"))
         {
@@ -888,7 +957,7 @@ private:
 
     bool isTypename(const Token &token)
     {
-        std::array<std::string_view, 9> typenames{"void"sv, "_Bool"sv, "bool"sv, "char"sv, "short"sv, "int"sv, "long"sv, "struct"sv, "union"sv};
+        std::array<std::string_view, 10> typenames{"void"sv, "_Bool"sv, "bool"sv, "char"sv, "short"sv, "int"sv, "long"sv, "struct"sv, "union"sv, "enum"sv};
         auto it = std::find(typenames.begin(), typenames.end(), token.getContent());
         if (it != typenames.end())
             return true;
@@ -964,5 +1033,5 @@ private:
     TokenViewer tok;
     Sema &m_sema;
     Arena &m_arena;
-    Function* current_func;
+    Function *current_func;
 };

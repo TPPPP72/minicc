@@ -16,7 +16,8 @@ enum class TypeKind : std::uint32_t
     FUNCTION,
     ARRAY,
     STRUCT,
-    UNION
+    UNION,
+    ENUM
 };
 
 using TypeId = std::int32_t;
@@ -46,4 +47,15 @@ struct alignas(32) Member
 struct alignas(32) Layout{
     std::vector<Member> members;
     std::uint32_t align{};
+};
+
+struct alignas(32) EnumMember{
+    std::string_view name;
+    std::int64_t value;
+};
+
+struct alignas(32) EnumInfo
+{
+    std::vector<EnumMember> members;
+    TypeId type_id;
 };
