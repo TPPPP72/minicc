@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AST/Node.hpp"
 #include <Attr/Attr.hpp>
 #include <Diag/Diag.hpp>
 #include <Lexer/Lexer.hpp>
@@ -390,6 +391,51 @@ private:
             auto &op_tok         = tok.getPrev();
             auto rhs             = assign();
             auto assign_node     = m_arena.alloc<BinaryNode>(NodeKind::ASSIGN, node, rhs, op_tok);
+            assign_node->type_id = node->type_id;
+            return assign_node;
+        }
+
+        if (tok.tryConsumeToken("+="))
+        {
+            auto &op_tok         = tok.getPrev();
+            auto rhs             = assign();
+            auto assign_node     = toAssign(m_sema.buildAdd(node, rhs, op_tok), op_tok);
+            assign_node->type_id = node->type_id;
+            return assign_node;
+        }
+
+        if (tok.tryConsumeToken("-="))
+        {
+            auto &op_tok         = tok.getPrev();
+            auto rhs             = assign();
+            auto assign_node     = toAssign(m_sema.buildSub(node, rhs, op_tok), op_tok);
+            assign_node->type_id = node->type_id;
+            return assign_node;
+        }
+
+        if (tok.tryConsumeToken("*="))
+        {
+            auto &op_tok         = tok.getPrev();
+            auto rhs             = assign();
+            auto assign_node     = toAssign(m_sema.buildMul(node, rhs, op_tok), op_tok);
+            assign_node->type_id = node->type_id;
+            return assign_node;
+        }
+
+        if (tok.tryConsumeToken("/="))
+        {
+            auto &op_tok         = tok.getPrev();
+            auto rhs             = assign();
+            auto assign_node     = toAssign(m_sema.buildDiv(node, rhs, op_tok), op_tok);
+            assign_node->type_id = node->type_id;
+            return assign_node;
+        }
+
+        if (tok.tryConsumeToken("%="))
+        {
+            auto &op_tok         = tok.getPrev();
+            auto rhs             = assign();
+            auto assign_node     = toAssign(m_sema.buildMod(node, rhs, op_tok), op_tok);
             assign_node->type_id = node->type_id;
             return assign_node;
         }
@@ -937,6 +983,32 @@ private:
         node->type_id = it->type_id;
         tok.skipToken();
         return node;
+    }
+
+    // a op= b -> tmp = &a, *tmp = *tmp op b
+    Node *toAssign(Node *node, const Token &op_tok)
+    {
+        auto binary = static_cast<BinaryNode *>(node);
+        auto var    = newVar<IsLocal>("", m_sema.getTypeContext().getPointerTypeId(binary->lhs->type_id));
+
+        Node *lhs      = m_arena.alloc<VarNode>(var);
+        lhs->type_id   = var->type_id;
+        Node *rhs      = m_sema.buildAddr(binary->lhs, op_tok);
+        auto expr1     = m_arena.alloc<BinaryNode>(NodeKind::ASSIGN, lhs, rhs);
+        expr1->type_id = lhs->type_id;
+
+        lhs             = m_arena.alloc<VarNode>(var);
+        lhs->type_id    = var->type_id;
+        lhs             = m_sema.buildDeref(lhs, op_tok);
+        rhs             = m_arena.alloc<VarNode>(var);
+        rhs->type_id    = var->type_id;
+        auto deref_node = m_sema.buildDeref(rhs, op_tok);
+        rhs             = m_arena.alloc<BinaryNode>(binary->kind, deref_node, binary->rhs);
+        rhs->type_id    = deref_node->type_id;
+        auto expr2      = m_arena.alloc<BinaryNode>(NodeKind::ASSIGN, lhs, rhs);
+        expr2->type_id = lhs->type_id;
+
+        return m_arena.alloc<BinaryNode>(NodeKind::COMMA, expr1, expr2);
     }
 
     Token getIdentToken()

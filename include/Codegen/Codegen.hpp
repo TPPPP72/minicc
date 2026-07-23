@@ -180,28 +180,33 @@ private:
         Assembler::pop(Reg{"rdi"});
 
         auto size = m_sema.getTypeSize(binary_node->type_id);
-        std::string_view ax, di;
+        std::string_view ax,dx, di;
 
         switch (size)
         {
         case 8:
             ax = "rax";
+            dx = "rdx";
             di = "rdi";
             break;
         case 4:
             ax = "eax";
+            dx = "edx";
             di = "edi";
             break;
         case 2:
             ax = "ax";
+            dx = "dx";;
             di = "di";
             break;
         case 1:
             ax = "al";
+            dx = "dl";
             di = "dil";
             break;
         default:
             ax = "rax";
+            dx = "rdx";
             di = "rdi";
             break;
         }
@@ -224,7 +229,7 @@ private:
         case NodeKind::MOD:
             preIdiv(size);
             Assembler::idiv(Reg{di});
-            Assembler::mov(Reg{"rdx"}, Reg{ax});
+            Assembler::mov(Reg{dx}, Reg{ax});
             return;
         case NodeKind::EQ:
         case NodeKind::NE:

@@ -33,6 +33,32 @@ int main()
     ASSERT(0, 1 >= 2);
 
     ASSERT(3, (1, 2, 3));
-    
+
+    {
+        int i = 2;
+        ASSERT(7, i += 5);
+    }
+    {
+        int i = 2;
+        i += 5;
+        ASSERT(7, i);
+    }
+    {
+        int i = 2;
+        ASSERT(-3, i -= 5);
+    }
+    {
+        int i = 2;
+        ASSERT(10, i *= 5);
+    }
+    {
+        int i = 2;
+        ASSERT(0, i /= 5);
+    }
+    {
+        int i = 2;
+        ASSERT(2, i %= 5);
+    }
+
     return 0;
 }
