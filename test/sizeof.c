@@ -33,5 +33,11 @@ int main()
     ASSERT(8, sizeof((long)-10 - 5));
     ASSERT(8, sizeof((long)-10 * 5));
     ASSERT(8, sizeof((long)-10 / 5));
+
+    {
+        char i;
+        ASSERT(1, sizeof(++i));
+    }
+    
     return 0;
 }

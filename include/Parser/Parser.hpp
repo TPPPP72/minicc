@@ -584,6 +584,33 @@ private:
             return m_arena.alloc<TypeCastNode>(cast(), final_tid, op_tok);
         }
 
+        return prefix();
+    }
+
+    Node *prefix()
+    {
+        if (tok.tryConsumeToken("++"))
+        {
+            auto &op_tok         = tok.getPrev();
+            auto lhs             = unary();
+            auto num_node        = m_arena.alloc<NumNode>(1, op_tok);
+            num_node->type_id    = m_sema.getTypeContext().getIntTypeId();
+            auto assign_node     = toAssign(m_sema.buildAdd(lhs, num_node, op_tok), op_tok);
+            assign_node->type_id = lhs->type_id;
+            return assign_node;
+        }
+
+        if (tok.tryConsumeToken("--"))
+        {
+            auto &op_tok         = tok.getPrev();
+            auto lhs             = unary();
+            auto num_node        = m_arena.alloc<NumNode>(1, op_tok);
+            num_node->type_id    = m_sema.getTypeContext().getIntTypeId();
+            auto assign_node     = toAssign(m_sema.buildSub(lhs, num_node, op_tok), op_tok);
+            assign_node->type_id = lhs->type_id;
+            return assign_node;
+        }
+
         return unary();
     }
 
@@ -989,7 +1016,7 @@ private:
     Node *toAssign(Node *node, const Token &op_tok)
     {
         auto binary = static_cast<BinaryNode *>(node);
-        auto var    = newVar<IsLocal>("", m_sema.getTypeContext().getPointerTypeId(binary->lhs->type_id));
+        auto var    = newAnonLvar(m_sema.getTypeContext().getPointerTypeId(binary->lhs->type_id));
 
         Node *lhs      = m_arena.alloc<VarNode>(var);
         lhs->type_id   = var->type_id;
@@ -1098,6 +1125,12 @@ private:
     {
         std::string_view safe_name = newUniqueName();
         return newVar<IsGlobal>(safe_name, tid);
+    }
+
+    Variable *newAnonLvar(TypeId tid)
+    {
+        std::string_view safe_name = newUniqueName();
+        return newVar<IsLocal>(safe_name, tid);
     }
 
 private:

@@ -59,6 +59,20 @@ int main()
         int i = 2;
         ASSERT(2, i %= 5);
     }
+    {
+        int i = 2;
+        ASSERT(3, ++i);
+        ASSERT(2, --i);
+    }
+    {
+        int a[3];
+        a[0]   = 0;
+        a[1]   = 1;
+        a[2]   = 2;
+        int *p = a + 1;
+        ASSERT(2, ++*p);
+        ASSERT(1, --*p);
+    }
 
     return 0;
 }
